@@ -59,6 +59,7 @@ target/release/docconv convert ./вхідні -o ./pdf --jobs 8
 ## Бенчмарки
 
 ```bash
+cargo run --release -p papir-core --example convert -- --runs 3 --jobs 4 каталог...  # конвертація в PDF: час на файл, документів і сторінок за секунду, пам'ять
 cargo run --release -p papir-core --example pages -- файл.docx...      # сторінки, час розбору й верстки
 cargo run --release -p papir-core --example xlsx_scan -- каталог...     # відкриває кожен .xlsx, збої й загальний час
 ```
