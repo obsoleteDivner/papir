@@ -1,0 +1,170 @@
+[
+ {
+  "family": "Caladea",
+  "bold": true,
+  "italic": false,
+  "file": "Caladea-Bold.ttf"
+ },
+ {
+  "family": "Caladea",
+  "bold": true,
+  "italic": true,
+  "file": "Caladea-BoldItalic.ttf"
+ },
+ {
+  "family": "Caladea",
+  "bold": false,
+  "italic": true,
+  "file": "Caladea-Italic.ttf"
+ },
+ {
+  "family": "Caladea",
+  "bold": false,
+  "italic": false,
+  "file": "Caladea-Regular.ttf"
+ },
+ {
+  "family": "Carlito",
+  "bold": true,
+  "italic": false,
+  "file": "Carlito-Bold.ttf"
+ },
+ {
+  "family": "Carlito",
+  "bold": true,
+  "italic": true,
+  "file": "Carlito-BoldItalic.ttf"
+ },
+ {
+  "family": "Carlito",
+  "bold": false,
+  "italic": true,
+  "file": "Carlito-Italic.ttf"
+ },
+ {
+  "family": "Carlito",
+  "bold": false,
+  "italic": false,
+  "file": "Carlito-Regular.ttf"
+ },
+ {
+  "family": "DejaVu Sans",
+  "bold": true,
+  "italic": false,
+  "file": "DejaVuSans-Bold.ttf"
+ },
+ {
+  "family": "DejaVu Sans",
+  "bold": true,
+  "italic": true,
+  "file": "DejaVuSans-BoldOblique.ttf"
+ },
+ {
+  "family": "DejaVu Sans",
+  "bold": false,
+  "italic": true,
+  "file": "DejaVuSans-Oblique.ttf"
+ },
+ {
+  "family": "DejaVu Sans",
+  "bold": false,
+  "italic": false,
+  "file": "DejaVuSans.ttf"
+ },
+ {
+  "family": "DejaVu Serif",
+  "bold": true,
+  "italic": false,
+  "file": "DejaVuSerif-Bold.ttf"
+ },
+ {
+  "family": "DejaVu Serif",
+  "bold": true,
+  "italic": true,
+  "file": "DejaVuSerif-BoldItalic.ttf"
+ },
+ {
+  "family": "DejaVu Serif",
+  "bold": false,
+  "italic": true,
+  "file": "DejaVuSerif-Italic.ttf"
+ },
+ {
+  "family": "DejaVu Serif",
+  "bold": false,
+  "italic": false,
+  "file": "DejaVuSerif.ttf"
+ },
+ {
+  "family": "Liberation Mono",
+  "bold": true,
+  "italic": false,
+  "file": "LiberationMono-Bold.ttf"
+ },
+ {
+  "family": "Liberation Mono",
+  "bold": true,
+  "italic": true,
+  "file": "LiberationMono-BoldItalic.ttf"
+ },
+ {
+  "family": "Liberation Mono",
+  "bold": false,
+  "italic": true,
+  "file": "LiberationMono-Italic.ttf"
+ },
+ {
+  "family": "Liberation Mono",
+  "bold": false,
+  "italic": false,
+  "file": "LiberationMono-Regular.ttf"
+ },
+ {
+  "family": "Liberation Sans",
+  "bold": true,
+  "italic": false,
+  "file": "LiberationSans-Bold.ttf"
+ },
+ {
+  "family": "Liberation Sans",
+  "bold": true,
+  "italic": true,
+  "file": "LiberationSans-BoldItalic.ttf"
+ },
+ {
+  "family": "Liberation Sans",
+  "bold": false,
+  "italic": true,
+  "file": "LiberationSans-Italic.ttf"
+ },
+ {
+  "family": "Liberation Sans",
+  "bold": false,
+  "italic": false,
+  "file": "LiberationSans-Regular.ttf"
+ },
+ {
+  "family": "Liberation Serif",
+  "bold": true,
+  "italic": false,
+  "file": "LiberationSerif-Bold.ttf"
+ },
+ {
+  "family": "Liberation Serif",
+  "bold": true,
+  "italic": true,
+  "file": "LiberationSerif-BoldItalic.ttf"
+ },
+ {
+  "family": "Liberation Serif",
+  "bold": false,
+  "italic": true,
+  "file": "LiberationSerif-Italic.ttf"
+ },
+ {
+  "family": "Liberation Serif",
+  "bold": false,
+  "italic": false,
+  "file": "LiberationSerif-Regular.ttf"
+ }
+]

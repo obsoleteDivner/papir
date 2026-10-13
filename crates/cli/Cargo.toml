@@ -1,0 +1,13 @@
+[package]
+name = "docconv"
+version = "0.1.0"
+edition = "2024"
+description = "DOCX to PDF converter on the Papir core"
+
+[[bin]]
+name = "docconv"
+path = "src/main.rs"
+
+[dependencies]
+papir-core = { path = "../core" }
+serde_json = "1"

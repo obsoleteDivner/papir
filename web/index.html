@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Папір</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="appbar">
+    <div class="ab-left">
+      <button class="ab-btn" data-cmd="save" title="Зберегти (Ctrl+S)"><i class="ic ic-save"></i></button>
+      <button class="ab-btn" data-cmd="undo" title="Скасувати (Ctrl+Z)"><i class="ic ic-undo"></i></button>
+      <button class="ab-btn" data-cmd="redo" title="Повторити (Ctrl+Y)"><i class="ic ic-redo"></i></button>
+      <span class="ab-title"><b id="doc-title"></b><span id="save-state"></span></span>
+      <span class="pill" id="ro-pill" hidden><i class="ic ic-eye"></i>Лише перегляд</span>
+    </div>
+    <div class="ab-right">
+      <button class="ab-btn ab-file" data-menu="file-menu" title="Друк, PDF, завантаження"><i class="ic ic-print"></i></button>
+      <button class="people" data-menu="share-menu" title="Хто зараз у документі"><span class="peers" id="peers"></span><span class="avatar" id="avatar"></span></button>
+    </div>
+  </header>
+  <div id="ribbon">
+    <nav class="tabs" role="tablist">
+      <button class="tab file" data-tab="file">Файл</button>
+      <button class="tab active" data-tab="home">Головна</button>
+      <button class="tab" data-tab="insert">Вставлення</button>
+      <button class="tab" data-tab="layout">Макет</button>
+      <button class="tab" data-tab="refs">Посилання</button>
+      <button class="tab" data-tab="review">Рецензування</button>
+      <button class="tab" data-tab="view">Вигляд</button>
+      <button class="tab ctx" data-tab="table" hidden>Таблиця</button>
+      <button class="tab ctx" data-tab="story" hidden>Колонтитули</button>
+    </nav>
+    <div class="panel" data-panel="home">
+      <div class="grp"><div class="gb"><button class="big" data-cmd="paste" title="Вставити (Ctrl+V)"><i class="ic ic-paste"></i><span>Вставити</span></button><div class="col"><button data-cmd="cut" title="Вирізати (Ctrl+X)"><i class="ic ic-cut"></i><span>Вирізати</span></button><button data-cmd="copy" title="Копіювати (Ctrl+C)"><i class="ic ic-copy"></i><span>Копіювати</span></button><button data-cmd="painter" title="Формат за зразком: клацніть, потім виділіть текст. Подвійний клік — для кількох місць, Esc — завершити"><i class="ic ic-painter"></i><span>Формат за зразком</span></button></div></div><div class="gl">Буфер обміну</div></div>
+      <div class="grp"><div class="gb"><div class="rows"><div class="row"><input id="font" class="font" title="Шрифт" spellcheck="false" autocomplete="off"><input id="size" class="size" title="Розмір шрифту" spellcheck="false" autocomplete="off"><button data-cmd="grow" class="txt" title="Збільшити розмір (Ctrl+])"><b>A+</b></button><button data-cmd="shrink" class="txt" title="Зменшити розмір (Ctrl+[)">A−</button></div><div class="row"><button data-cmd="b" class="txt" title="Жирний (Ctrl+B)"><b>Ж</b></button><button data-cmd="i" class="txt" title="Курсив (Ctrl+I)"><i class="it">К</i></button><button data-cmd="u" class="txt" title="Підкреслений (Ctrl+U)"><u>П</u></button><button data-cmd="s" class="txt" title="Закреслений"><s>abc</s></button><button data-cmd="sub" class="txt narrow" title="Нижній індекс (Ctrl+=)">x₂</button><button data-cmd="sup" class="txt narrow" title="Верхній індекс (Ctrl+Shift+=)">x²</button><span class="split"><button data-cmd="highlight" title="Колір виділення тексту"><i class="ic ic-marker"></i><span class="bar" id="hl-swatch" style="background:#f2d440"></span></button><button class="drop" data-menu="highlight-menu" title="Інші кольори виділення"><i class="ic ic-chevron"></i></button></span><span class="split"><button data-cmd="color" title="Колір шрифту"><span class="a-color">A</span><span class="bar" id="color-swatch" style="background:#c3422f"></span></button><button class="drop" data-menu="color-menu" title="Інші кольори шрифту"><i class="ic ic-chevron"></i></button></span><button data-cmd="clear" title="Очистити форматування (Ctrl+Space)"><i class="ic ic-clear"></i></button></div></div></div><div class="gl">Шрифт</div></div>
+      <div class="grp"><div class="gb"><div class="rows"><div class="row"><button data-cmd="bullets" title="Маркери"><i class="ic ic-bullets"></i></button><button data-cmd="numbering" title="Нумерація"><i class="ic ic-numbers"></i></button><button data-cmd="outdent" title="Зменшити відступ"><i class="ic ic-outdent"></i></button><button data-cmd="indent" title="Збільшити відступ"><i class="ic ic-indent"></i></button><button data-menu="spacing-menu" title="Інтервали між рядками й абзацами"><i class="ic ic-spacing"></i></button></div><div class="row"><button data-cmd="left" title="За лівим краєм (Ctrl+L)"><i class="ic ic-left"></i></button><button data-cmd="center" title="По центру (Ctrl+E)"><i class="ic ic-center"></i></button><button data-cmd="right" title="За правим краєм (Ctrl+R)"><i class="ic ic-right"></i></button><button data-cmd="both" title="За шириною (Ctrl+J)"><i class="ic ic-justify"></i></button></div></div></div><div class="gl">Абзац</div></div>
+      <div class="grp grp-styles"><div class="gb"><div class="gallery" id="gallery"></div><button class="gallery-more" data-menu="styles-menu" title="Усі стилі"><i class="ic ic-chevron"></i></button><button class="style-pick" data-menu="styles-menu" title="Стиль абзацу"><span id="style-name">Звичайний</span><i class="ic ic-chevron"></i></button></div><div class="gl">Стилі</div></div>
+      <div class="grp"><div class="gb"><div class="col"><button data-cmd="find" title="Знайти (Ctrl+F)"><i class="ic ic-find"></i><span>Знайти</span></button><button data-cmd="replace" title="Замінити (Ctrl+H)"><i class="ic ic-replace"></i><span>Замінити</span></button><button data-menu="select-menu" title="Виділення"><i class="ic ic-cursor"></i><span>Виділити</span></button></div></div><div class="gl">Редагування</div></div>
+    </div>
+    <div class="panel" data-panel="insert" hidden>
+      <div class="grp"><div class="gb"><button class="big" data-menu="table-menu" title="Вставити таблицю"><i class="ic ic-table"></i><span>Таблиця<i class="ic ic-chevron dd"></i></span></button></div><div class="gl">Таблиці</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="image" title="Зображення з файлу (також Ctrl+V і перетягування)"><i class="ic ic-image"></i><span>Зображення</span></button><input type="file" id="image-file" accept="image/png,image/jpeg,image/gif" hidden></div><div class="gl">Ілюстрації</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="pagebreak" title="Розрив сторінки (Ctrl+Enter)"><i class="ic ic-pagebreak"></i><span>Розрив сторінки</span></button></div><div class="gl">Сторінки</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="link" title="Гіперпосилання (Ctrl+K)"><i class="ic ic-link"></i><span>Посилання</span></button></div><div class="gl">Посилання</div></div>
+      <div class="grp"><div class="gb"><div class="col"><button data-cmd="header" title="Редагувати верхній колонтитул (подвійний клік угорі сторінки)"><i class="ic ic-header"></i><span>Верхній колонтитул</span></button><button data-cmd="footer" title="Редагувати нижній колонтитул (подвійний клік унизу сторінки)"><i class="ic ic-footer"></i><span>Нижній колонтитул</span></button><button data-cmd="pagenum" title="Поле з номером сторінки"><i class="ic ic-hash"></i><span>Номер сторінки</span></button></div></div><div class="gl">Колонтитули</div></div>
+    </div>
+    <div class="panel" data-panel="layout" hidden>
+      <div class="grp"><div class="gb"><button class="big" data-menu="margins-menu" title="Поля сторінки"><i class="ic ic-margins"></i><span>Поля<i class="ic ic-chevron dd"></i></span></button><button class="big" data-menu="orient-menu" title="Орієнтація сторінки"><i class="ic ic-orient"></i><span>Орієнтація<i class="ic ic-chevron dd"></i></span></button><button class="big" data-menu="size-menu" title="Розмір паперу"><i class="ic ic-paper"></i><span>Розмір<i class="ic ic-chevron dd"></i></span></button></div><div class="gl">Параметри сторінки</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-menu="spacing-menu" title="Інтервали між рядками й абзацами"><i class="ic ic-spacing"></i><span>Інтервали<i class="ic ic-chevron dd"></i></span></button><div class="col"><button data-cmd="indent" title="Збільшити відступ"><i class="ic ic-indent"></i><span>Збільшити відступ</span></button><button data-cmd="outdent" title="Зменшити відступ"><i class="ic ic-outdent"></i><span>Зменшити відступ</span></button></div></div><div class="gl">Абзац</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="pagebreak" title="Розрив сторінки (Ctrl+Enter)"><i class="ic ic-pagebreak"></i><span>Розрив сторінки</span></button></div><div class="gl">Розриви</div></div>
+    </div>
+    <div class="panel" data-panel="refs" hidden>
+      <div class="grp"><div class="gb"><div class="col"><button data-cmd="pagenum" title="Поле PAGE: номер поточної сторінки"><i class="ic ic-hash"></i><span>Номер сторінки</span></button><button data-cmd="pagecount" title="Поле NUMPAGES: кількість сторінок"><i class="ic ic-pageview"></i><span>Кількість сторінок</span></button><button data-cmd="date" title="Поле DATE: сьогоднішня дата"><i class="ic ic-calendar"></i><span>Дата</span></button></div></div><div class="gl">Поля</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="link" title="Гіперпосилання (Ctrl+K)"><i class="ic ic-link"></i><span>Посилання</span></button></div><div class="gl">Гіперпосилання</div></div>
+    </div>
+    <div class="panel" data-panel="table" hidden>
+      <div class="grp"><div class="gb"><div class="col"><button data-cmd="row_above" title="Вставити рядок вище"><i class="ic ic-row-above"></i><span>Рядок вище</span></button><button data-cmd="row_below" title="Вставити рядок нижче"><i class="ic ic-row-below"></i><span>Рядок нижче</span></button></div><div class="col"><button data-cmd="col_left" title="Вставити колонку ліворуч"><i class="ic ic-col-left"></i><span>Колонка ліворуч</span></button><button data-cmd="col_right" title="Вставити колонку праворуч"><i class="ic ic-col-right"></i><span>Колонка праворуч</span></button></div></div><div class="gl">Рядки й колонки</div></div>
+      <div class="grp"><div class="gb"><div class="col"><button data-cmd="del_row" title="Видалити рядок"><i class="ic ic-trash"></i><span>Рядок</span></button><button data-cmd="del_col" title="Видалити колонку"><i class="ic ic-trash"></i><span>Колонку</span></button><button data-cmd="del_table" title="Видалити таблицю"><i class="ic ic-trash"></i><span>Таблицю</span></button></div></div><div class="gl">Видалити</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="merge" title="Виділіть клітинки в рядку або колонці"><i class="ic ic-merge"></i><span>Об'єднати</span></button></div><div class="gl">Об'єднання</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="distribute" title="Однакова ширина колонок; межі колонок можна перетягувати"><i class="ic ic-distribute"></i><span>Вирівняти колонки</span></button></div><div class="gl">Розмір</div></div>
+    </div>
+    <div class="panel" data-panel="story" hidden>
+      <div class="grp"><div class="gb"><div class="col"><button data-cmd="pagenum" title="Поле з номером сторінки"><i class="ic ic-hash"></i><span>Номер сторінки</span></button><button data-cmd="pagecount" title="Поле з кількістю сторінок"><i class="ic ic-pageview"></i><span>Кількість сторінок</span></button><button data-cmd="date" title="Поле з датою"><i class="ic ic-calendar"></i><span>Дата</span></button></div></div><div class="gl">Поля</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="closestory" title="Повернутися до тексту (Esc)"><i class="ic ic-close"></i><span>Закрити колонтитули</span></button></div><div class="gl">Закрити</div></div>
+    </div>
+    <div class="panel" data-panel="review" hidden>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="newcomment" title="Новий коментар (Ctrl+Alt+M)"><i class="ic ic-comment"></i><span>Новий коментар</span></button><button class="big" data-cmd="comments" title="Показати або сховати коментарі"><i class="ic ic-panel"></i><span>Коментарі</span></button></div><div class="gl">Примітки</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="track" title="Записувати мої правки як виправлення (їх можна буде прийняти чи відхилити)"><i class="ic ic-pencil"></i><span>Записувати виправлення</span></button><button class="big active" data-cmd="markup" title="Показувати виправлення або текст, ніби їх прийнято"><i class="ic ic-eye"></i><span>Показувати виправлення</span></button><div class="col"><button data-cmd="prevchange" title="Попереднє виправлення"><i class="ic ic-prev"></i><span>Попереднє</span></button><button data-cmd="nextchange" title="Наступне виправлення"><i class="ic ic-next"></i><span>Наступне</span></button><span class="muted" id="changes-count"></span></div></div><div class="gl">Відстеження</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="accept" title="Прийняти виправлення під курсором або у виділенні"><i class="ic ic-accept"></i><span>Прийняти</span></button><button class="big" data-cmd="reject" title="Відхилити виправлення під курсором або у виділенні"><i class="ic ic-reject"></i><span>Відхилити</span></button><div class="col"><button data-cmd="acceptall" title="Прийняти всі виправлення"><i class="ic ic-accept"></i><span>Прийняти всі</span></button><button data-cmd="rejectall" title="Відхилити всі виправлення"><i class="ic ic-reject"></i><span>Відхилити всі</span></button></div></div><div class="gl">Зміни</div></div>
+    </div>
+    <div class="panel" data-panel="view" hidden>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="zoomout" title="Зменшити масштаб"><i class="ic ic-zoom-out"></i><span>Зменшити</span></button><button class="big" data-cmd="zoom100" title="Масштаб 100%"><i class="ic ic-pageview"></i><span>100%</span></button><button class="big" data-cmd="zoomin" title="Збільшити масштаб"><i class="ic ic-zoom-in"></i><span>Збільшити</span></button><button class="big" data-cmd="zoomwidth" title="По ширині сторінки"><i class="ic ic-fit"></i><span>По ширині</span></button></div><div class="gl">Масштаб</div></div>
+      <div class="grp"><div class="gb"><button class="big" data-cmd="ruler" title="Показати або сховати лінійку"><i class="ic ic-ruler"></i><span>Лінійка</span></button><button class="big" data-cmd="focus" title="Режим фокусування: лише документ (Esc — вийти)"><i class="ic ic-focus"></i><span>Фокус</span></button><button class="big active" data-cmd="spell" title="Перевіряти правопис (українська, англійська)"><i class="ic ic-spell"></i><span>Правопис</span></button><button class="big" data-cmd="compact" title="Однорядкова стрічка; вимкніть, щоб бачити повну стрічку з підписами груп"><i class="ic ic-fit"></i><span>Компактна стрічка</span></button></div><div class="gl">Показати</div></div>
+    </div>
+  </div>
+  <main id="viewport">
+    <canvas id="canvas"></canvas>
+    <div id="ruler" hidden><canvas></canvas></div>
+    <div id="scroller" tabindex="-1">
+      <div id="spacer">
+        <div id="caret"></div>
+        <textarea id="input" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Документ"></textarea>
+      </div>
+    </div>
+    <aside id="comments-panel" hidden>
+      <div class="cp-head"><span id="cp-title">Коментарі</span><button class="x" data-cp-close title="Сховати">×</button></div>
+      <div class="cp-new" id="cp-new" hidden>
+        <textarea id="cp-new-text" rows="3" placeholder="Текст коментаря"></textarea>
+        <div class="cp-actions"><button data-cp-cancel>Скасувати</button><button class="primary" data-cp-save>Додати</button></div>
+      </div>
+      <div class="cp-list" id="cp-list"></div>
+    </aside>
+    <div id="landing" hidden>
+      <div class="card">
+        <h1>Папір</h1>
+        <p>Редактор документів .docx</p>
+        <label class="open-btn">Відкрити .docx<input type="file" id="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label>
+        <p class="hint">або перетягніть файл сюди</p>
+      </div>
+    </div>
+    <div id="toast" hidden></div>
+  </main>
+  <footer id="status">
+    <span id="st-page"></span>
+    <span id="st-words"></span>
+    <span id="st-lang"></span>
+    <span id="st-change"></span>
+    <span id="st-mode"></span>
+    <span id="st-track" hidden>Запис виправлень</span>
+    <span class="grow"></span>
+    <button class="st-btn" data-cmd="focus" title="Режим фокусування: лише документ (Esc — вийти)">Фокус</button>
+    <button class="st-ic active" title="Розмітка сторінки"><i class="ic ic-pageview"></i></button>
+    <label class="st-label" for="zoom">Масштаб</label>
+    <input type="range" id="zoom" min="50" max="200" step="10" value="100">
+    <span id="st-zoom">100%</span>
+  </footer>
+</div>
+
+<div class="menu" id="color-menu" hidden></div>
+<div class="menu" id="highlight-menu" hidden></div>
+<div class="menu" id="spacing-menu" hidden>
+  <button data-line="1">1,0</button>
+  <button data-line="1.15">1,15</button>
+  <button data-line="1.5">1,5</button>
+  <button data-line="2">2,0</button>
+  <hr>
+  <button data-after="0">Без інтервалу після абзацу</button>
+  <button data-after="8">Інтервал після абзацу 8 пт</button>
+</div>
+<div class="menu styles-menu" id="styles-menu" hidden><div id="styles"></div></div>
+<div class="menu" id="margins-menu" hidden>
+  <button data-margins="1134,1134,1701,567">Звичайні для документів (ДСТУ 4163)<small>верх і низ 2 см, ліве 3 см, праве 1 см</small></button>
+  <button data-margins="1440,1440,1440,1440">Звичайні Word<small>2,54 см з усіх боків</small></button>
+  <button data-margins="720,720,720,720">Вузькі<small>1,27 см</small></button>
+  <button data-margins="1440,1440,2880,2880">Широкі<small>ліве й праве 5,08 см</small></button>
+</div>
+<div class="menu" id="orient-menu" hidden>
+  <button data-orient="portrait">Книжкова</button>
+  <button data-orient="landscape">Альбомна</button>
+</div>
+<div class="menu" id="size-menu" hidden>
+  <button data-paper="11906,16838">A4<small>21 × 29,7 см</small></button>
+  <button data-paper="8391,11906">A5<small>14,8 × 21 см</small></button>
+  <button data-paper="16838,23811">A3<small>29,7 × 42 см</small></button>
+  <button data-paper="12240,15840">Letter<small>21,59 × 27,94 см</small></button>
+</div>
+<div class="menu ctx-menu" id="context-menu" hidden>
+  <div class="ctx-spell" hidden></div>
+  <button data-ctx="cut">Вирізати<kbd>Ctrl+X</kbd></button>
+  <button data-ctx="copy">Копіювати<kbd>Ctrl+C</kbd></button>
+  <button data-ctx="paste">Вставити<kbd>Ctrl+V</kbd></button>
+  <div class="ctx-edit"><hr><button data-ctx="newcomment">Новий коментар<kbd>Ctrl+Alt+M</kbd></button></div>
+  <div class="ctx-link"><hr><button data-ctx="openlink">Відкрити посилання</button></div>
+  <div class="ctx-table"><hr>
+    <button data-ctx="row_above">Вставити рядок вище</button>
+    <button data-ctx="row_below">Вставити рядок нижче</button>
+    <button data-ctx="col_left">Вставити колонку ліворуч</button>
+    <button data-ctx="col_right">Вставити колонку праворуч</button>
+    <button data-ctx="del_row">Видалити рядок</button>
+    <button data-ctx="del_col">Видалити колонку</button>
+    <button data-ctx="merge">Об'єднати клітинки</button>
+  </div>
+</div>
+<div class="menu share-menu" id="share-menu" hidden>
+  <div class="sm-head"><i class="ic ic-users"></i>Зараз у документі</div>
+  <div id="share-list"></div>
+  <p class="sm-note">Доступ до документа надає застосунок, з якого його відкрили.</p>
+</div>
+<div class="menu list-menu" id="font-menu" hidden></div>
+<div class="menu list-menu" id="size-menu-pt" hidden></div>
+<div class="menu tools-more" id="tools-more" hidden></div>
+<div class="menu" id="select-menu" hidden>
+  <button data-cmd="selectall">Виділити все<kbd>Ctrl+A</kbd></button>
+</div>
+<div class="menu table-menu" id="table-menu" hidden>
+  <div class="tgrid" id="tgrid"></div>
+  <div class="tgrid-label" id="tgrid-label">Вставити таблицю</div>
+</div>
+<div class="menu file-menu" id="file-menu" hidden>
+  <button data-cmd="save"><i class="ic ic-save"></i>Зберегти <kbd>Ctrl+S</kbd></button>
+  <button data-cmd="download"><i class="ic ic-download"></i>Завантажити копію (.docx)</button>
+  <button data-cmd="pdf"><i class="ic ic-download"></i>Завантажити PDF</button>
+  <button data-cmd="print"><i class="ic ic-print"></i>Друк <kbd>Ctrl+P</kbd></button>
+  <button data-cmd="openlocal" class="local-only"><i class="ic ic-open"></i>Відкрити інший файл</button>
+</div>
+
+<div class="dialog" id="find-dialog" hidden>
+  <div class="dlg-head"><span>Знайти й замінити</span><button class="x" data-close>×</button></div>
+  <div class="dlg-row"><label for="find-text">Знайти</label><input id="find-text" spellcheck="false"></div>
+  <div class="dlg-row replace-row"><label for="replace-text">Замінити на</label><input id="replace-text" spellcheck="false"></div>
+  <div class="dlg-row"><label class="chk"><input type="checkbox" id="find-case"> Враховувати регістр</label></div>
+  <div class="dlg-actions">
+    <button data-find="prev">Попереднє</button>
+    <button data-find="next" class="primary">Далі</button>
+    <button data-find="replace" class="replace-row">Замінити</button>
+    <button data-find="all" class="replace-row">Замінити все</button>
+  </div>
+  <div class="dlg-msg" id="find-msg"></div>
+</div>
+
+<div class="dialog" id="link-dialog" hidden>
+  <div class="dlg-head"><span>Посилання</span><button class="x" data-close>×</button></div>
+  <div class="dlg-row"><label for="link-url">Адреса</label><input id="link-url" spellcheck="false" placeholder="https://"></div>
+  <div class="dlg-row"><label for="link-text">Текст</label><input id="link-text" spellcheck="false"></div>
+  <div class="dlg-actions"><button data-close>Скасувати</button><button id="link-ok" class="primary">Вставити</button></div>
+</div>
+
+<div id="print-root"></div>
+<script type="module" src="dist/main.js"></script>
+</body>
+</html>

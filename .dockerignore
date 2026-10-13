@@ -1,0 +1,7 @@
+target
+corpus
+web/node_modules
+web/dist
+web/pkg
+server/_build
+server/deps

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Папір — таблиця</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="sheet.css">
+</head>
+<body class="sheet-app">
+<div id="app">
+  <header id="appbar" class="xl">
+    <div class="ab-left">
+      <span class="ab-title"><b id="doc-title"></b></span>
+      <span class="pill" id="ro-pill"><i class="ic ic-eye"></i>Лише перегляд</span>
+    </div>
+    <div class="ab-search">
+      <i class="ic ic-find"></i>
+      <input id="xl-search" type="search" placeholder="Пошук у таблиці" autocomplete="off" spellcheck="false" aria-label="Пошук у таблиці">
+    </div>
+    <div class="ab-right">
+      <button class="people" title="Хто зараз у документі"><span class="avatar" id="avatar"></span></button>
+    </div>
+  </header>
+  <nav id="xl-toolbar">
+    <button data-x="download" title="Завантажити файл"><i class="ic ic-download"></i>Завантажити</button>
+    <button data-x="print" title="Друк аркуша (Ctrl+P)"><i class="ic ic-print"></i>Друк</button>
+    <button data-x="filter" title="Фільтр за значеннями колонок"><i class="ic ic-filter"></i>Фільтр</button>
+    <span class="sep"></span>
+    <label for="xl-zoom" class="lbl">Масштаб</label>
+    <select id="xl-zoom">
+      <option value="50">50%</option><option value="75">75%</option><option value="90">90%</option>
+      <option value="100" selected>100%</option><option value="125">125%</option><option value="150">150%</option><option value="200">200%</option>
+    </select>
+    <span class="grow"></span>
+    <button class="edit" data-x="edit" id="xl-edit" title="Відкрити для редагування в Collabora"><i class="ic ic-pencil"></i>Редагувати</button>
+  </nav>
+  <div id="xl-fbar">
+    <div id="xl-addr"></div>
+    <div class="fx">fx</div>
+    <div id="xl-content"></div>
+  </div>
+  <main id="xl-view">
+    <canvas id="xl-canvas"></canvas>
+    <div id="xl-scroll" tabindex="0" aria-label="Аркуш"><div id="xl-spacer"></div></div>
+    <div id="toast" hidden></div>
+  </main>
+  <div id="xl-tabs"></div>
+  <footer id="status"><span id="xl-status">Готово</span><span class="grow"></span><span id="xl-stats"></span></footer>
+</div>
+<div class="menu share-menu" id="share-menu" hidden>
+  <div class="sm-head"><i class="ic ic-users"></i>Зараз у документі</div>
+  <div id="share-list"></div>
+  <p class="sm-note">Доступ до документа надає застосунок, з якого його відкрили.</p>
+</div>
+<div class="menu xl-filter" id="xl-filter-menu" hidden></div>
+<div id="print-root"></div>
+<script type="module" src="dist/sheet.js"></script>
+</body>
+</html>

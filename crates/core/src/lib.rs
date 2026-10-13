@@ -1,0 +1,19 @@
+pub mod chart;
+pub mod collab;
+pub mod comments;
+pub mod docx;
+pub mod edit;
+pub mod editor;
+pub mod fonts;
+pub mod layout;
+pub mod model;
+pub mod numfmt;
+pub mod ops;
+pub mod pdf;
+pub mod props;
+pub mod review;
+pub mod styles;
+pub mod xml;
+
+pub use docx::Document;
+pub mod xlsx;

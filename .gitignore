@@ -1,0 +1,7 @@
+target/
+corpus/local/
+node_modules/
+web/dist/
+web/pkg/
+*.log
+local/
