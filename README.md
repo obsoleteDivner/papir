@@ -2,6 +2,15 @@
 
 A .docx editor and .xlsx viewer for the browser, and a .docx → PDF converter, built on its own core in Rust. Embeds into other applications through WOPI.
 
+**Try it in your browser: [obsoletedivner.github.io/papir](https://obsoletedivner.github.io/papir/)** — nothing is uploaded, the editor runs on your machine.
+
+![The editor with the demo document](docs/screenshot.png)
+
+## Download
+
+- The converter for Linux x86_64 (with its fonts): [releases](https://github.com/obsoleteDivner/papir/releases).
+- The server with the editor: `docker pull ghcr.io/obsoletedivner/papir` (see [Configuration](#configuration)).
+
 ## Layout
 
 | Directory | What it is |
@@ -71,11 +80,10 @@ cargo run --release -p papir-core --example xlsx_scan -- dir...                 
 Everything is set in `server/config/config.exs` (with comments), the image's paths in `server/config/prod.exs`. A deployment needs just two addresses:
 
 ```bash
-docker build -t papir .
-docker run -p 8780:8780 -e DOCSERVER_PUBLIC_URL=https://docs.example.com -e WOPI_HOSTS=https://app.example.com papir
+docker run -p 8780:8780 -e DOCSERVER_PUBLIC_URL=https://docs.example.com -e WOPI_HOSTS=https://app.example.com ghcr.io/obsoletedivner/papir
 ```
 
-`DOCSERVER_PUBLIC_URL` is the address browsers reach Papir at; `WOPI_HOSTS` is the address of the application documents are opened from (the WOPI host). Any other value from the config can be overridden by an environment variable too (see `server/config/runtime.exs`), though it is rarely needed. `--build-arg WITH_SOFFICE=1` adds LibreOffice to the image for formats other than .docx.
+`DOCSERVER_PUBLIC_URL` is the address browsers reach Papir at; `WOPI_HOSTS` is the address of the application documents are opened from (the WOPI host). Any other value from the config can be overridden by an environment variable too (see `server/config/runtime.exs`), though it is rarely needed. To build the image yourself: `docker build -t papir .`; `--build-arg WITH_SOFFICE=1` adds LibreOffice to it for formats other than .docx.
 
 ## License
 

@@ -1,0 +1,54 @@
+# A tag v* builds the converter for Linux and the docserver image, and
+# publishes them: the archive in a GitHub release, the image in ghcr.io.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  docconv:
+    # glibc of 22.04: the binary runs there and on anything newer
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release -p docconv
+      - name: Package
+        run: |
+          d="docconv-${GITHUB_REF_NAME}-linux-x86_64"
+          mkdir "$d"
+          cp target/release/docconv LICENSE NOTICE "$d/"
+          cp -r fonts "$d/"
+          tar czf "$d.tar.gz" "$d"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: docconv-*.tar.gz
+          generate_release_notes: true
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image name
+        # registry names are lower case
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.ref_name }}
+            ${{ env.IMAGE }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=Apache-2.0

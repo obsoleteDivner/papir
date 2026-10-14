@@ -1,0 +1,58 @@
+# The editor as a static site on GitHub Pages: it runs entirely in the
+# browser, opening a demo document or a file the visitor picks.
+name: pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - run: cargo install wasm-bindgen-cli --version 0.2.129 --locked
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: ./scripts/build-web.sh
+      - name: Site
+        run: |
+          mkdir -p site/web site/dict
+          cp -r web/index.html web/sheet.html web/style.css web/sheet.css web/icons.css web/dist web/pkg site/web/
+          cp -r fonts samples site/
+          cp dict/*.aff dict/*.dic dict/LICENSES.md site/dict/
+          touch site/.nojekyll
+          cat > site/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>Papir</title>
+          <meta http-equiv="refresh" content="0; url=web/index.html?open=../samples/demo.docx">
+          <a href="web/index.html?open=../samples/demo.docx">Papir: open the demo document</a>
+          HTML
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
