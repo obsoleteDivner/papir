@@ -128,6 +128,10 @@ impl Sink for PageSink<'_> {
                     continue;
                 }
                 let gid = f.glyph(ch);
+                // a character no font has: nothing rather than a .notdef box
+                if gid == 0 {
+                    continue;
+                }
                 let cid = used.remap.remap(gid);
                 used.unicode.entry(cid).or_insert(ch);
                 run.extend_from_slice(&cid.to_be_bytes());

@@ -344,6 +344,8 @@ pub fn layout(env: &Env, p: &Para, width: f32, ctx: &ParaCtx) -> ParaLayout {
                 }
                 let caps = eff.caps == Some(true);
                 let small = eff.small_caps == Some(true) && !caps;
+                // text set in Symbol or Wingdings: what those fonts draw, in Unicode
+                let sym_font = eff.font_ascii.clone().or_else(|| eff.font_hansi.clone()).filter(|f| crate::fonts::symbol_char(f, ' ').is_some());
                 let si = stys.len();
                 stys.push(s.clone());
                 let mut small_si = None;
@@ -351,6 +353,7 @@ pub fn layout(env: &Env, p: &Para, width: f32, ctx: &ParaCtx) -> ParaLayout {
                     match it {
                         Item::Text(t) => {
                             for c in t.chars() {
+                                let c = sym_font.as_deref().and_then(|f| crate::fonts::symbol_char(f, c)).unwrap_or(c);
                                 let (mut dc, mut sty, mut size) = (c, si, s.size);
                                 if caps {
                                     dc = c.to_uppercase().next().unwrap_or(c);
@@ -407,6 +410,17 @@ pub fn layout(env: &Env, p: &Para, width: f32, ctx: &ParaCtx) -> ParaLayout {
                             };
                             if n > 0 {
                                 for c in n.to_string().chars() {
+                                    let face = env.fonts.for_char(s.face, c);
+                                    chars.push(Ch { c, off, phantom: false, tracked: false, k: K::Label, sty: si, face, size: s.size, w: env.fonts.width(face, c, s.size), img: None });
+                                }
+                            }
+                        }
+                        // a symbol inserted from a font (Insert → Symbol): drawn, not editable as text
+                        Item::Raw(e) if !hidden && e.is_w("sym") => {
+                            let code = e.wattr("char").and_then(|h| u32::from_str_radix(h, 16).ok()).and_then(char::from_u32);
+                            if let Some(c) = code {
+                                let c = e.wattr("font").and_then(|f| crate::fonts::symbol_char(f, c)).unwrap_or(c);
+                                if !crate::fonts::invisible(c) {
                                     let face = env.fonts.for_char(s.face, c);
                                     chars.push(Ch { c, off, phantom: false, tracked: false, k: K::Label, sty: si, face, size: s.size, w: env.fonts.width(face, c, s.size), img: None });
                                 }
