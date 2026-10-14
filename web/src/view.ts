@@ -1,6 +1,7 @@
 import type { Session } from "../pkg/papir_wasm.js";
 import type { DisplayList, Face, State } from "./types.js";
 import { htmlToXml } from "./html.js";
+import { t } from "./i18n.js";
 
 const PT = 96 / 72;
 const GAP = 14;
@@ -330,7 +331,7 @@ export class DocView {
           ctx.setLineDash([]);
           ctx.font = `${11 * dpr}px system-ui, sans-serif`;
           ctx.fillStyle = brand;
-          ctx.fillText("Виноска", ox + 8 * dpr, oy + nt * k - 6 * dpr);
+          ctx.fillText(t("Виноска"), ox + 8 * dpr, oy + nt * k - 6 * dpr);
         }
       } else if (st) {
         const [, , , , top, bottom] = this.s.page_size(i);
@@ -348,7 +349,7 @@ export class DocView {
         ctx.setLineDash([]);
         ctx.font = `${11 * dpr}px system-ui, sans-serif`;
         ctx.fillStyle = brand;
-        const label = st.kind === "footer" ? "Нижній колонтитул" : "Верхній колонтитул";
+        const label = st.kind === "footer" ? t("Нижній колонтитул") : t("Верхній колонтитул");
         const ly = st.kind === "footer" ? bottom * k + 14 * dpr : top * k - 5 * dpr;
         ctx.fillText(label, ox + 8 * dpr, oy + ly);
       }
@@ -895,7 +896,7 @@ export class DocView {
       const bytes = new Uint8Array(await f.arrayBuffer());
       this.exec(() => this.s.insert_image(bytes, ext === "jpeg" ? "jpg" : ext, bmp.width, bmp.height));
     } catch {
-      fail("Підтримуються зображення PNG, JPEG і GIF");
+      fail(t("Підтримуються зображення PNG, JPEG і GIF"));
     }
     this.focus();
   }

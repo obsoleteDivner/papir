@@ -2,6 +2,7 @@ import type { Session } from "../pkg/papir_wasm.js";
 import type { DocView } from "./view.js";
 import type { CommentItem, State } from "./types.js";
 import { escapeHtml } from "./view.js";
+import { t } from "./i18n.js";
 
 /** Comments panel: threads, replies, resolve, delete, new comment. */
 export class CommentsPanel {
@@ -75,7 +76,7 @@ export class CommentsPanel {
     if (st.version === this.seen && st.comment === this.active) return;
     this.seen = st.version;
     this.active = st.comment;
-    (document.getElementById("cp-title") as HTMLElement).textContent = st.comments ? `Коментарі (${st.comments})` : "Коментарі";
+    (document.getElementById("cp-title") as HTMLElement).textContent = st.comments ? t("Коментарі ({0})", st.comments) : t("Коментарі");
     if (this.panel.hidden) return;
     this.render(JSON.parse(this.s.comments()) as CommentItem[]);
   }
@@ -86,18 +87,18 @@ export class CommentsPanel {
     const replies = (c: CommentItem) => items.filter((r) => r.parent && r.parent === c.paraId);
     const date = (d: string) => (d ? new Date(d).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" }) : "");
     const card = (c: CommentItem, reply: boolean) =>
-      `<div class="${reply ? "reply" : ""}" data-id="${escapeHtml(c.id)}"><div class="who"><b>${escapeHtml(c.author || "Невідомо")}</b><span>${escapeHtml(date(c.date))}</span></div><div class="txt">${escapeHtml(c.text)}</div></div>`;
+      `<div class="${reply ? "reply" : ""}" data-id="${escapeHtml(c.id)}"><div class="who"><b>${escapeHtml(c.author || t("Невідомо"))}</b><span>${escapeHtml(date(c.date))}</span></div><div class="txt">${escapeHtml(c.text)}</div></div>`;
     this.list.innerHTML = roots.length
       ? roots
           .map((c) => {
             const active = c.id === this.active || replies(c).some((r) => r.id === this.active);
             const acts = ro
               ? ""
-              : `<div class="acts"><button data-act="reply">Відповісти</button><button data-act="${c.done ? "reopen" : "resolve"}">${c.done ? "Відкрити знову" : "Закрити"}</button><button data-act="delete">Видалити</button></div><div class="cp-reply" hidden><textarea rows="2" placeholder="Відповідь"></textarea><div class="cp-actions"><button data-act="cancel">Скасувати</button><button class="primary" data-act="send">Відповісти</button></div></div>`;
-            return `<div class="cp-card${active ? " active" : ""}${c.done ? " done" : ""}" data-root="${escapeHtml(c.id)}">${c.done ? '<div class="badge">Закрито</div>' : ""}${card(c, false)}${replies(c).map((r) => card(r, true)).join("")}${acts}</div>`;
+              : `<div class="acts"><button data-act="reply">${t("Відповісти")}</button><button data-act="${c.done ? "reopen" : "resolve"}">${c.done ? t("Відкрити знову") : t("Закрити")}</button><button data-act="delete">${t("Видалити")}</button></div><div class="cp-reply" hidden><textarea rows="2" placeholder="${t("Відповідь")}"></textarea><div class="cp-actions"><button data-act="cancel">${t("Скасувати")}</button><button class="primary" data-act="send">${t("Відповісти")}</button></div></div>`;
+            return `<div class="cp-card${active ? " active" : ""}${c.done ? " done" : ""}" data-root="${escapeHtml(c.id)}">${c.done ? `<div class="badge">${t("Закрито")}</div>` : ""}${card(c, false)}${replies(c).map((r) => card(r, true)).join("")}${acts}</div>`;
           })
           .join("")
-      : `<div class="cp-empty">Коментарів немає. Виділіть текст і натисніть «Новий коментар».</div>`;
+      : `<div class="cp-empty">${t("Коментарів немає. Виділіть текст і натисніть «Новий коментар».")}</div>`;
     this.list.querySelectorAll<HTMLElement>(".cp-card").forEach((el) => {
       const id = el.dataset.root!;
       el.addEventListener("click", (e) => {

@@ -7,6 +7,7 @@ import { Ruler } from "./ruler.js";
 import { CommentsPanel } from "./comments.js";
 import { Collab, Sync, type Person } from "./collab.js";
 import { Spelling } from "./spell.js";
+import { lang, t, translatePage } from "./i18n.js";
 
 /** Settings the server puts into the page (absent in standalone mode). */
 interface Config {
@@ -72,10 +73,10 @@ function contextMenu(s: Session, view: DocView, ribbon: Ribbon, host: Host, spel
           view.focus();
         });
       };
-      box.innerHTML = `<div class="none">Варіанти…</div>`;
+      box.innerHTML = `<div class="none">${t("Варіанти…")}</div>`;
       void spell.suggest(occ.word).then((words) => {
         box.innerHTML = "";
-        if (!words.length) box.innerHTML = `<div class="none">Немає варіантів</div>`;
+        if (!words.length) box.innerHTML = `<div class="none">${t("Немає варіантів")}</div>`;
         for (const w of words.slice(0, 6)) {
           const b = document.createElement("button");
           b.className = "sg";
@@ -87,10 +88,10 @@ function contextMenu(s: Session, view: DocView, ribbon: Ribbon, host: Host, spel
           box.appendChild(b);
         }
         const skip = document.createElement("button");
-        skip.textContent = "Пропустити все";
+        skip.textContent = t("Пропустити все");
         pick(skip, () => spell.ignore(occ.word));
         const add = document.createElement("button");
-        add.textContent = "Додати до словника";
+        add.textContent = t("Додати до словника");
         pick(add, () => spell.addWord(occ.word));
         box.append(document.createElement("hr"), skip, add, document.createElement("hr"));
       });
@@ -122,7 +123,7 @@ const LANGS: Record<string, string> = {
 /** Language of the text for the status bar: from the document, else guessed from its letters. */
 function language(s: Session): string {
   const code = (s.doc_lang() ?? "").toLowerCase().split("-")[0];
-  if (LANGS[code]) return LANGS[code];
+  if (LANGS[code]) return t(LANGS[code]);
   return "";
 }
 
@@ -135,12 +136,16 @@ function setSaveState(text: string): void {
 }
 
 async function main(): Promise<void> {
+  translatePage();
+  // the menu offers the other language by its own name
+  const sw = document.querySelector("#lang-switch span");
+  if (sw) sw.textContent = lang === "uk" ? "English" : "Українська";
   await init();
   const s = new Session();
   const fonts = new FontLoader(s, cfg.fontsUrl ?? new URL("../fonts/", location.href).href);
   await fonts.init();
   const local = !cfg.session;
-  let fileName = cfg.fileName ?? "документ.docx";
+  let fileName = cfg.fileName ?? t("документ.docx");
   let view: DocView | null = null;
   // edits count at the last save: more means unsaved changes
   let savedEdits = 0;
@@ -154,9 +159,9 @@ async function main(): Promise<void> {
   const author = () => {
     if (cfg.user) return cfg.user;
     try {
-      return localStorage.getItem("papir:author") || "Користувач";
+      return localStorage.getItem("papir:author") || t("Користувач");
     } catch {
-      return "Користувач";
+      return t("Користувач");
     }
   };
 
@@ -164,8 +169,8 @@ async function main(): Promise<void> {
   // saved means written to the host; edits that reached the room are not saved yet
   const showSaveState = () => {
     if (!view || view.readOnly) return setSaveState("");
-    if (sync?.active && collab && !collab.online && s.collab_pending()) return setSaveState("Немає зв'язку — правки чекають на мережу");
-    setSaveState(dirty() ? "Зміни не збережено" : local ? "" : "Збережено");
+    if (sync?.active && collab && !collab.online && s.collab_pending()) return setSaveState(t("Немає зв'язку — правки чекають на мережу"));
+    setSaveState(dirty() ? t("Зміни не збережено") : local ? "" : t("Збережено"));
   };
 
   const host: Host = {
@@ -178,7 +183,7 @@ async function main(): Promise<void> {
       const version = view.state.version;
       const edits = view.state.edits;
       saving = (async () => {
-        setSaveState("Збереження…");
+        setSaveState(t("Збереження…"));
         try {
           const headers: Record<string, string> = { "content-type": "application/octet-stream", "x-papir-version": String(version) };
           if (sync?.active) {
@@ -188,30 +193,30 @@ async function main(): Promise<void> {
               await new Promise((r) => setTimeout(r, 100));
               sync.flush();
             }
-            if (s.collab_pending()) throw new Error("немає зв'язку з сервером");
+            if (s.collab_pending()) throw new Error(t("немає зв'язку з сервером"));
             headers["x-papir-room-version"] = String(s.collab_version() ?? 0);
           }
           const bytes = s.save();
           const r = await fetch(`${cfg.api}/session/${cfg.session}/file`, { method: "POST", headers, body: bytes });
-          if (r.status === 409 && (await r.clone().text()).includes("not_synced")) throw new Error("саме прийшли правки інших — збережіть ще раз");
-          if (r.status === 409) throw new Error("документ уже збережено в іншому вікні");
-          if (r.status === 401) throw new Error("сесію завершено, оновіть сторінку");
+          if (r.status === 409 && (await r.clone().text()).includes("not_synced")) throw new Error(t("саме прийшли правки інших — збережіть ще раз"));
+          if (r.status === 409) throw new Error(t("документ уже збережено в іншому вікні"));
+          if (r.status === 401) throw new Error(t("сесію завершено, оновіть сторінку"));
           if (!r.ok) throw new Error(await r.text());
           savedEdits = edits;
           // the host stores a new version and reopens the editor with it
           rememberView();
           view!.readOnly = true;
-          setSaveState("Збережено");
-          toast("Збережено. Відкриваємо нову версію…", 8000);
+          setSaveState(t("Збережено"));
+          toast(t("Збережено. Відкриваємо нову версію…"), 8000);
           setTimeout(() => {
             if (view?.readOnly && cfg.canWrite) {
-              $("#st-mode").textContent = "Збережено як нову версію";
-              toast("Документ збережено. Щоб редагувати далі, відкрийте його знову.", 10000);
+              $("#st-mode").textContent = t("Збережено як нову версію");
+              toast(t("Документ збережено. Щоб редагувати далі, відкрийте його знову."), 10000);
             }
           }, 10000);
         } catch (e) {
-          setSaveState("Помилка збереження");
-          toast(`Не вдалося зберегти: ${(e as Error).message || e}`, 6000);
+          setSaveState(t("Помилка збереження"));
+          toast(t("Не вдалося зберегти: {0}", (e as Error).message || e), 6000);
         } finally {
           saving = null;
         }
@@ -228,7 +233,7 @@ async function main(): Promise<void> {
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
       if (local) {
         savedEdits = view.state.edits;
-        setSaveState("Завантажено");
+        setSaveState(t("Завантажено"));
       }
     },
     downloadPdf() {
@@ -242,7 +247,7 @@ async function main(): Promise<void> {
     },
     async print() {
       if (!view) return;
-      toast("Готуємо друк…", 1500);
+      toast(t("Готуємо друк…"), 1500);
       const urls = await view.renderPages(2);
       const root = $("#print-root");
       root.innerHTML = urls.map((u) => `<img src="${u}" alt="">`).join("");
@@ -283,12 +288,12 @@ async function main(): Promise<void> {
     try {
       s.open(bytes);
     } catch (e) {
-      toast(`Не вдалося відкрити файл (${(e as Error).message})`, 6000);
+      toast(t("Не вдалося відкрити файл ({0})", (e as Error).message), 6000);
       return;
     }
     await fonts.ensure(JSON.parse(s.needed_families(JSON.stringify(fonts.families()))));
     fileName = name;
-    document.title = `${name} — Папір`;
+    document.title = t("{0} — Папір", name);
     $("#doc-title").textContent = name;
     $("#landing").hidden = true;
     if (!view) {
@@ -341,12 +346,12 @@ async function main(): Promise<void> {
         spell?.schedule();
         ruler.draw();
         comments?.update(st);
-        $("#st-page").textContent = `Сторінка ${(st.caret?.page ?? view!.currentPage()) + 1} з ${view!.pageCount()}`;
+        $("#st-page").textContent = t("Сторінка {0} з {1}", (st.caret?.page ?? view!.currentPage()) + 1, view!.pageCount());
         if (!saving) showSaveState();
       };
       view.scroller.addEventListener("scroll", () => {
         spell?.schedule();
-        $("#st-page").textContent = `Сторінка ${view!.currentPage() + 1} з ${view!.pageCount()}`;
+        $("#st-page").textContent = t("Сторінка {0} з {1}", view!.currentPage() + 1, view!.pageCount());
       });
     } else {
       view.refresh(false);
@@ -372,7 +377,7 @@ async function main(): Promise<void> {
     view.refresh(false);
     if (view.autoFit) view.fit();
     view.focus();
-    $("#st-words").textContent = `Слів: ${s.word_count()}`;
+    $("#st-words").textContent = t("Слів: {0}", s.word_count());
     document.body.classList.remove("pending");
   };
 
@@ -401,14 +406,14 @@ async function main(): Promise<void> {
     const sample = new URLSearchParams(location.search).get("open");
     if (sample) {
       const r = await fetch(sample);
-      await open(new Uint8Array(await r.arrayBuffer()), decodeURIComponent(sample.split("/").pop() || "документ.docx"), false);
+      await open(new Uint8Array(await r.arrayBuffer()), decodeURIComponent(sample.split("/").pop() || t("документ.docx")), false);
     } else {
       $("#landing").hidden = false;
     }
   } else {
     const r = await fetch(`${cfg.api}/session/${cfg.session}/file`);
     if (!r.ok) {
-      toast(r.status === 401 ? "Сесію завершено. Оновіть сторінку в системі." : "Не вдалося отримати файл", 10000);
+      toast(r.status === 401 ? t("Сесію завершено. Оновіть сторінку в системі.") : t("Не вдалося отримати файл"), 10000);
       return;
     }
     await open(new Uint8Array(await r.arrayBuffer()), fileName, !cfg.canWrite);
@@ -454,7 +459,7 @@ async function main(): Promise<void> {
           v.readOnly = true;
           $("#ro-pill").hidden = false;
           setSaveState("");
-          toast("Зв'язку не було надто довго: незбережені зміни відкинуто. Відкрийте документ знову.", 15000);
+          toast(t("Зв'язку не було надто довго: незбережені зміни відкинуто. Відкрийте документ знову."), 15000);
         };
       }
       c.onStatus = (online) => {
@@ -471,7 +476,7 @@ async function main(): Promise<void> {
           const a = document.createElement("span");
           a.className = "avatar";
           a.textContent = initials(p.name);
-          a.title = p.name + (p.write ? "" : " (перегляд)");
+          a.title = p.name + (p.write ? "" : t(" (перегляд)"));
           a.style.background = p.color;
           peers.appendChild(a);
         }
@@ -486,12 +491,12 @@ async function main(): Promise<void> {
       c.onSaved = (by: string) => {
         if (saving) return;
         if (!sync) {
-          toast(`${by || "Хтось"} зберіг нову версію документа. Відкрийте її, щоб побачити зміни.`, 12000);
+          toast(t("{0} зберіг нову версію документа. Відкрийте її, щоб побачити зміни.", by || t("Хтось")), 12000);
           return;
         }
         v.readOnly = true;
         $("#ro-pill").hidden = false;
-        toast(`${by || "Хтось"} зберіг документ як нову версію. Щоб редагувати далі, відкрийте його знову.`, 12000);
+        toast(t("{0} зберіг документ як нову версію. Щоб редагувати далі, відкрийте його знову.", by || t("Хтось")), 12000);
       };
       window.addEventListener("pagehide", () => c.leave());
       v.scroller.addEventListener("scroll", () => c.refreshRemote(), { passive: true });
@@ -511,7 +516,7 @@ async function main(): Promise<void> {
       if (v.readOnly) return;
       v.readOnly = true;
       $("#ro-pill").hidden = false;
-      toast("Цей документ уже збережено або відкрито в іншому вікні. Відкрийте його знову.", 10000);
+      toast(t("Цей документ уже збережено або відкрито в іншому вікні. Відкрийте його знову."), 10000);
     };
     const pushDraft = async () => {
       draftTimer = 0;
@@ -527,7 +532,7 @@ async function main(): Promise<void> {
         if (r.status === 409) return superseded();
         if (r.ok) draftVersion = version;
       } catch {
-        setSaveState("Немає зв'язку з сервером");
+        setSaveState(t("Немає зв'язку з сервером"));
       }
     };
     v.onEdit = () => {
@@ -563,10 +568,10 @@ async function main(): Promise<void> {
     }
   });
   // word count is not needed on every keystroke
-  setInterval(() => view && ($("#st-words").textContent = `Слів: ${s.word_count()}`), 3000);
+  setInterval(() => view && ($("#st-words").textContent = t("Слів: {0}", s.word_count())), 3000);
 }
 
 main().catch((e) => {
   console.error(e);
-  toast(`Помилка запуску: ${e.message || e}`, 10000);
+  toast(t("Помилка запуску: {0}", e.message || e), 10000);
 });

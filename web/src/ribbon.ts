@@ -1,6 +1,7 @@
 import type { Session } from "../pkg/papir_wasm.js";
 import type { DocView } from "./view.js";
 import type { State } from "./types.js";
+import { lang, setLang, t } from "./i18n.js";
 
 const FONTS = ["Times New Roman", "Arial", "Calibri", "Cambria", "Courier New", "Verdana", "Tahoma", "Georgia", "Liberation Serif", "Liberation Sans", "DejaVu Sans"];
 const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
@@ -114,7 +115,7 @@ export class Ribbon {
     if (!more) {
       more = document.createElement("button");
       more.className = "more-tools";
-      more.title = "Ще інструменти";
+      more.title = t("Ще інструменти");
       more.innerHTML = "⋯";
       more.style.fontSize = "18px";
       more.addEventListener("mousedown", (e) => e.preventDefault());
@@ -143,7 +144,7 @@ export class Ribbon {
   focusMode(on: boolean): void {
     document.body.classList.toggle("focus", on);
     this.closeMenus();
-    if (on) this.host.toast("Режим фокусування. Esc — вийти");
+    if (on) this.host.toast(t("Режим фокусування. Esc — вийти"));
     this.v.focus();
   }
 
@@ -158,7 +159,7 @@ export class Ribbon {
         const b = document.createElement("button");
         b.addEventListener("mouseenter", () => {
           cells.forEach((x, i) => x.classList.toggle("on", Math.floor(i / C) <= r && i % C <= c));
-          label.textContent = `Таблиця ${c + 1} × ${r + 1}`;
+          label.textContent = t("Таблиця {0} × {1}", c + 1, r + 1);
         });
         b.addEventListener("mousedown", (e) => e.preventDefault());
         b.addEventListener("click", () => {
@@ -207,7 +208,7 @@ export class Ribbon {
         this.v.exec(() => this.s.insert_link(u, text.value));
         close();
       } catch {
-        this.host.toast("Вкажіть адресу http(s) або пошту");
+        this.host.toast(t("Вкажіть адресу http(s) або пошту"));
       }
     };
     this.$("#link-ok").addEventListener("click", ok);
@@ -278,6 +279,8 @@ export class Ribbon {
       pdf: () => this.host.downloadPdf(),
       print: () => void this.host.print(),
       openlocal: () => this.host.openLocal(),
+      // the other language, named in itself
+      lang: () => setLang(lang === "uk" ? "en" : "uk"),
       zoomin: () => ((v.autoFit = false), v.setZoom(Math.round(v.zoom * 10 + 1) / 10)),
       zoomout: () => ((v.autoFit = false), v.setZoom(Math.round(v.zoom * 10 - 1) / 10)),
       zoom100: () => ((v.autoFit = false), v.setZoom(1)),
@@ -315,7 +318,7 @@ export class Ribbon {
       spell: () => {
         const on = this.host.toggleSpell();
         document.querySelectorAll('[data-cmd="spell"]').forEach((b) => b.classList.toggle("active", on));
-        this.host.toast(on ? "Перевірка правопису увімкнена" : "Перевірку правопису вимкнено");
+        this.host.toast(on ? t("Перевірка правопису увімкнена") : t("Перевірку правопису вимкнено"));
       },
       footer: () => {
         const page = v.currentPage();
@@ -335,16 +338,16 @@ export class Ribbon {
       closestory: () => v.exec(() => s.exit_story(), false),
       header: () => v.exec(() => s.edit_story_at(v.currentPage(), 100, 10), false),
       comments: () => this.host.toggleComments(),
-      prevchange: () => v.exec(() => s.next_change(-1) || this.host.toast("Виправлень немає"), false),
-      nextchange: () => v.exec(() => s.next_change(1) || this.host.toast("Виправлень немає"), false),
-      accept: () => v.exec(() => s.review(true, false) || this.host.toast("Тут немає виправлень")),
-      reject: () => v.exec(() => s.review(false, false) || this.host.toast("Тут немає виправлень")),
-      acceptall: () => v.exec(() => this.host.toast(`Прийнято: ${s.review(true, true)}`)),
-      rejectall: () => v.exec(() => this.host.toast(`Відхилено: ${s.review(false, true)}`)),
+      prevchange: () => v.exec(() => s.next_change(-1) || this.host.toast(t("Виправлень немає")), false),
+      nextchange: () => v.exec(() => s.next_change(1) || this.host.toast(t("Виправлень немає")), false),
+      accept: () => v.exec(() => s.review(true, false) || this.host.toast(t("Тут немає виправлень"))),
+      reject: () => v.exec(() => s.review(false, false) || this.host.toast(t("Тут немає виправлень"))),
+      acceptall: () => v.exec(() => this.host.toast(t("Прийнято: {0}", s.review(true, true)))),
+      rejectall: () => v.exec(() => this.host.toast(t("Відхилено: {0}", s.review(false, true)))),
       markup: () => v.exec(() => s.set_markup(!v.state.markup), false),
       track: () => {
         v.exec(() => s.set_track(!v.state.track), false);
-        this.host.toast(v.state.track ? "Правки записуються як виправлення" : "Запис виправлень вимкнено");
+        this.host.toast(v.state.track ? t("Правки записуються як виправлення") : t("Запис виправлень вимкнено"));
       },
       bullets: () => v.exec(() => s.toggle_list(true)),
       numbering: () => v.exec(() => s.toggle_list(false)),
@@ -357,7 +360,7 @@ export class Ribbon {
       del_row: () => v.exec(() => s.table_op("del_row")),
       del_col: () => v.exec(() => s.table_op("del_col")),
       del_table: () => v.exec(() => s.table_op("del_table")),
-      merge: () => v.exec(() => s.table_op("merge") || this.host.toast("Виділіть кілька клітинок одного рядка або колонки")),
+      merge: () => v.exec(() => s.table_op("merge") || this.host.toast(t("Виділіть кілька клітинок одного рядка або колонки"))),
       distribute: () => v.exec(() => s.table_op("distribute")),
     };
     map[cmd]?.();
@@ -391,7 +394,7 @@ export class Ribbon {
         if (kind === "cut") v.exec(() => this.s.cut());
       }
     } catch {
-      this.host.toast(kind === "paste" ? "Браузер не дав доступу до буфера. Скористайтеся Ctrl+V" : `Скористайтеся ${kind === "cut" ? "Ctrl+X" : "Ctrl+C"}`);
+      this.host.toast(kind === "paste" ? t("Браузер не дав доступу до буфера. Скористайтеся Ctrl+V") : t("Скористайтеся {0}", kind === "cut" ? "Ctrl+X" : "Ctrl+C"));
     }
     v.focus();
   }
@@ -485,7 +488,7 @@ export class Ribbon {
     const cm = this.$("#color-menu");
     cm.classList.add("colors");
     cm.innerHTML =
-      `<button class="wide" data-color="">Автоматичний</button>` +
+      `<button class="wide" data-color="">${t("Автоматичний")}</button>` +
       COLORS.map((c) => `<button data-color="${c}" title="#${c}" style="background:#${c}"></button>`).join("");
     cm.querySelectorAll<HTMLButtonElement>("button").forEach((b) => {
       b.addEventListener("mousedown", (e) => e.preventDefault());
@@ -503,7 +506,7 @@ export class Ribbon {
     const hm = this.$("#highlight-menu");
     hm.classList.add("colors");
     hm.innerHTML =
-      `<button class="wide" data-hl="">Без кольору</button>` +
+      `<button class="wide" data-hl="">${t("Без кольору")}</button>` +
       HIGHLIGHTS.map(([n, c]) => `<button data-hl="${n}" title="${n}" style="background:${c}"></button>`).join("");
     hm.querySelectorAll<HTMLButtonElement>("button").forEach((b) => {
       b.addEventListener("mousedown", (e) => e.preventDefault());
@@ -546,7 +549,7 @@ export class Ribbon {
     };
     for (const st of list.slice(0, 40)) {
       const b = document.createElement("button");
-      b.textContent = this.styleNames[st.name] ?? st.name;
+      b.textContent = t(this.styleNames[st.name] ?? st.name);
       b.title = st.name;
       b.addEventListener("mousedown", (e) => e.preventDefault());
       b.addEventListener("click", () => apply(st.id));
@@ -559,12 +562,12 @@ export class Ribbon {
     for (const st of quick.slice(0, 16)) {
       const b = document.createElement("button");
       b.className = "tile";
-      const name = this.styleNames[st.name] ?? st.name;
+      const name = t(this.styleNames[st.name] ?? st.name);
       b.title = name;
       const pv = document.createElement("span");
       pv.className = "pv";
       const big = (st.size ?? 11) >= 20;
-      pv.textContent = big ? "Аа" : "АаБб";
+      pv.textContent = big ? t("Аа") : t("АаБб");
       pv.style.fontFamily = this.host.cssFont(st.font);
       pv.style.fontSize = `${Math.round(Math.min(26, Math.max(16, (st.size ?? 11) * 1.1)))}px`;
       if (st.b) pv.style.fontWeight = "700";
@@ -609,7 +612,7 @@ export class Ribbon {
       row.append(av, nm);
       if (p.me) {
         const me = document.createElement("small");
-        me.textContent = "ви";
+        me.textContent = t("ви");
         row.append(me);
       }
       list.appendChild(row);
@@ -652,12 +655,12 @@ export class Ribbon {
 
   private find(): void {
     const d = this.$("#find-dialog");
-    const t = this.$("#find-text") as HTMLInputElement;
+    const field = this.$("#find-text") as HTMLInputElement;
     const r = this.$("#replace-text") as HTMLInputElement;
     const c = this.$("#find-case") as HTMLInputElement;
     const msg = this.$("#find-msg");
     const go = (what: string) => {
-      const needle = t.value;
+      const needle = field.value;
       if (!needle) return;
       let ok = true;
       if (what === "next" || what === "prev") ok = this.s.find(needle, c.checked, what === "prev");
@@ -666,19 +669,19 @@ export class Ribbon {
         if (this.v.readOnly) return;
         let n = 0;
         this.v.exec(() => (n = this.s.replace_all(needle, r.value, c.checked)));
-        msg.textContent = `Замінено: ${n}`;
+        msg.textContent = t("Замінено: {0}", n);
         return;
       }
       if (what === "replace") this.v.exec(() => 0);
       else this.v.refresh();
-      msg.textContent = ok ? "" : "Нічого не знайдено";
+      msg.textContent = ok ? "" : t("Нічого не знайдено");
     };
     d.querySelectorAll<HTMLButtonElement>("[data-find]").forEach((b) => b.addEventListener("click", () => go(b.dataset.find!)));
     d.querySelector("[data-close]")!.addEventListener("click", () => {
       d.hidden = true;
       this.v.focus();
     });
-    for (const inp of [t, r]) {
+    for (const inp of [field, r]) {
       inp.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
@@ -732,11 +735,11 @@ export class Ribbon {
     tog("markup", st.markup);
     tog("track", st.track);
     this.$("#st-track").hidden = !st.track;
-    this.$("#changes-count").textContent = st.changes ? `Виправлень: ${st.changes}` : "Виправлень немає";
+    this.$("#changes-count").textContent = st.changes ? t("Виправлень: {0}", st.changes) : t("Виправлень немає");
     const kinds: Record<string, string> = { ins: "Вставлено", del: "Видалено", format: "Змінено формат", paragraph: "Змінено абзац" };
     const c = st.change;
     const date = c?.date ? new Date(c.date).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" }) : "";
-    this.$("#st-change").textContent = c ? `${kinds[c.kind] ?? c.kind}: ${c.author || "невідомо"}${date ? ", " + date : ""}` : "";
+    this.$("#st-change").textContent = c ? `${t(kinds[c.kind] ?? c.kind)}: ${c.author || t("невідомо")}${date ? ", " + date : ""}` : "";
     // the header/footer tab; a footnote is edited with the usual tabs
     const storyTab = document.querySelector('.tab[data-tab="story"]') as HTMLElement;
     const hf = !!st.story && st.story.kind !== "footnote";
@@ -756,11 +759,11 @@ export class Ribbon {
     const size = this.$("#size") as HTMLInputElement;
     if (document.activeElement !== font) font.value = f.font.split(";")[0];
     if (document.activeElement !== size) size.value = f.size != null ? String(f.size).replace(".", ",") : "";
-    const cur = (id: string, b: HTMLButtonElement) => id === (f.style ?? "Normal") || (!f.style && (b.title === "Normal" || b.title === "Звичайний"));
+    const cur = (id: string, b: HTMLButtonElement) => id === (f.style ?? "Normal") || (!f.style && (b.title === "Normal" || b.title === t("Звичайний")));
     this.styleButtons.forEach((b, id) => b.classList.toggle("active", cur(id, b)));
     this.tiles.forEach((b, id) => b.classList.toggle("active", cur(id, b)));
     const sn = f.styleName ?? "Normal";
-    this.$("#style-name").textContent = this.styleNames[sn] ?? sn;
+    this.$("#style-name").textContent = t(this.styleNames[sn] ?? sn);
     const z = Math.round(this.v.zoom * 100);
     const zoom = this.$("#zoom") as HTMLInputElement;
     zoom.value = String(z);

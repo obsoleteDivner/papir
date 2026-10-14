@@ -1,5 +1,6 @@
 import init, { Book } from "../pkg/papir_wasm.js";
 import { initials } from "./ribbon.js";
+import { t, translatePage } from "./i18n.js";
 
 /** Settings from the server (absent when opened locally). */
 interface Config { session?: string; api?: string; fileName?: string; canWrite?: boolean; user?: string; fontsUrl?: string; editUrl?: string }
@@ -685,7 +686,7 @@ class Grid {
         this.draw();
       } else if (ctrl && e.code === "KeyC") {
         e.preventDefault();
-        void navigator.clipboard.writeText(this.tsv()).then(() => toast("Скопійовано"), () => toast("Браузер не дав доступу до буфера"));
+        void navigator.clipboard.writeText(this.tsv()).then(() => toast(t("Скопійовано")), () => toast(t("Браузер не дав доступу до буфера")));
       }
     });
   }
@@ -719,9 +720,9 @@ class Grid {
     const keys = [...vals.keys()].sort((a, b) => a.localeCompare(b, "uk", { numeric: true })).slice(0, 1000);
     const cur = this.filterSel.get(c);
     const esc = (t: string) => t.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]!);
-    menu.innerHTML = `<label><input type="checkbox" data-all checked> <b>Виділити все</b></label><div class="xf-list">${keys
-      .map((k, i) => `<label><input type="checkbox" data-i="${i}" ${!cur || cur.has(k) ? "checked" : ""}> ${k === "" ? "(Пусті)" : esc(k)}</label>`)
-      .join("")}</div><div class="xf-acts"><button data-cancel>Скасувати</button><button class="primary" data-ok>Застосувати</button></div>`;
+    menu.innerHTML = `<label><input type="checkbox" data-all checked> <b>${t("Виділити все")}</b></label><div class="xf-list">${keys
+      .map((k, i) => `<label><input type="checkbox" data-i="${i}" ${!cur || cur.has(k) ? "checked" : ""}> ${k === "" ? t("(Пусті)") : esc(k)}</label>`)
+      .join("")}</div><div class="xf-acts"><button data-cancel>${t("Скасувати")}</button><button class="primary" data-ok>${t("Застосувати")}</button></div>`;
     const boxes = [...menu.querySelectorAll<HTMLInputElement>("[data-i]")];
     const all = menu.querySelector<HTMLInputElement>("[data-all]")!;
     all.checked = boxes.every((b) => b.checked);
@@ -755,13 +756,13 @@ class Grid {
     }
     this.axes();
     const shown = f ? Math.max(f[2], this.lay.nrows - 1) - f[0] - this.filtered.size : 0;
-    $("#xl-status").textContent = this.filterSel.size ? `Фільтр: показано ${shown} рядків` : "Готово";
+    $("#xl-status").textContent = this.filterSel.size ? t("Фільтр: показано {0} рядків", shown) : t("Готово");
   }
 
   toggleFilter(): void {
     if (!this.lay.filter) {
       // no filter in the file: the used range, headers in the selected row
-      if (!this.lay.ncols) return toast("Аркуш порожній");
+      if (!this.lay.ncols) return toast(t("Аркуш порожній"));
       const r = Math.min(this.sel.r, this.sel.r2);
       this.lay.filter = [r, 0, Math.max(r, this.lay.nrows - 1), this.lay.ncols - 1];
       this.filterOn = true;
@@ -824,19 +825,20 @@ function colName(c: number): string {
 }
 
 async function main(): Promise<void> {
+  translatePage();
   await init();
   const local = !cfg.session;
-  let name = cfg.fileName ?? "таблиця.xlsx";
+  let name = cfg.fileName ?? t("таблиця.xlsx");
   let bytes: Uint8Array;
   if (local) {
     const src = new URLSearchParams(location.search).get("open");
     if (!src) {
-      toast("Вкажіть файл: ?open=шлях.xlsx", 10000);
+      toast(t("Вкажіть файл: ?open=шлях.xlsx"), 10000);
       return;
     }
     const r = await fetch(src);
     if (!r.ok) {
-      toast(`Не вдалося отримати файл (${r.status})`, 10000);
+      toast(t("Не вдалося отримати файл ({0})", r.status), 10000);
       return;
     }
     bytes = new Uint8Array(await r.arrayBuffer());
@@ -844,23 +846,23 @@ async function main(): Promise<void> {
   } else {
     const r = await fetch(`${cfg.api}/session/${cfg.session}/file`);
     if (!r.ok) {
-      toast(r.status === 401 ? "Сесію завершено. Оновіть сторінку в системі." : "Не вдалося отримати файл", 10000);
+      toast(r.status === 401 ? t("Сесію завершено. Оновіть сторінку в системі.") : t("Не вдалося отримати файл"), 10000);
       return;
     }
     bytes = new Uint8Array(await r.arrayBuffer());
   }
-  document.title = `${name} — Папір`;
+  document.title = t("{0} — Папір", name);
   $("#doc-title").textContent = name;
-  const me = cfg.user || "Користувач";
+  const me = cfg.user || t("Користувач");
   $("#avatar").textContent = initials(me);
   $("#avatar").title = me;
-  $("#share-list").innerHTML = `<div class="sm-user"><span class="avatar">${initials(me)}</span><span></span><small>ви</small></div>`;
+  $("#share-list").innerHTML = `<div class="sm-user"><span class="avatar">${initials(me)}</span><span></span><small>${t("ви")}</small></div>`;
   ($("#share-list").querySelector("span:not(.avatar)") as HTMLElement).textContent = me;
   let book: Book;
   try {
     book = new Book(bytes);
   } catch (e) {
-    toast(`Не вдалося відкрити таблицю (${(e as Error).message ?? e})`, 10000);
+    toast(t("Не вдалося відкрити таблицю ({0})", (e as Error).message ?? e), 10000);
     return;
   }
   const fonts = new Fonts(cfg.fontsUrl ?? new URL("../fonts/", location.href).href);
@@ -891,7 +893,7 @@ async function main(): Promise<void> {
     $("#xl-content").textContent = cell.formula ?? cell.text;
     $("#xl-content").title = cell.formula ?? cell.text;
     const st = ra === rb && ca === cb ? null : JSON.parse(book.stats(grid.sheet, ra, ca, rb, cb));
-    $("#xl-stats").textContent = st && st.count > 1 ? (st.nums ? `Середнє: ${st.avg}    Кількість: ${st.count}    Сума: ${st.sum}` : `Кількість: ${st.count}`) : "";
+    $("#xl-stats").textContent = st && st.count > 1 ? (st.nums ? t("Середнє: {0}    Кількість: {1}    Сума: {2}", st.avg, st.count, st.sum) : t("Кількість: {0}", st.count)) : "";
   };
   const first = visible[0]?.i ?? 0;
   (tabs.querySelector("button") as HTMLElement | null)?.classList.add("active");
@@ -905,7 +907,7 @@ async function main(): Promise<void> {
   const edit = $("#xl-edit") as HTMLButtonElement;
   if (!cfg.editUrl || cfg.canWrite === false) {
     edit.disabled = true;
-    edit.title = cfg.editUrl ? "Відкрийте документ для редагування в системі" : "Редагування таблиць — у Collabora; її адресу не налаштовано";
+    edit.title = cfg.editUrl ? t("Відкрийте документ для редагування в системі") : t("Редагування таблиць — у Collabora; її адресу не налаштовано");
   }
   const run: Record<string, () => void> = {
     download: () => {
@@ -918,7 +920,7 @@ async function main(): Promise<void> {
     print: () => {
       const root = $("#print-root");
       root.innerHTML = grid.html();
-      if (!root.innerHTML) return toast("Аркуш порожній");
+      if (!root.innerHTML) return toast(t("Аркуш порожній"));
       window.print();
       root.innerHTML = "";
     },
@@ -955,7 +957,7 @@ async function main(): Promise<void> {
     if (e.key !== "Enter" || !search.value.trim()) return;
     e.preventDefault();
     const hit = JSON.parse(book.find(grid.sheet, search.value.trim(), grid.sel.r, grid.sel.c, e.shiftKey));
-    if (!hit) return toast("Нічого не знайдено");
+    if (!hit) return toast(t("Нічого не знайдено"));
     grid.select(hit[0], hit[1]);
   });
   document.addEventListener("keydown", (e) => {
@@ -972,5 +974,5 @@ async function main(): Promise<void> {
 
 main().catch((e) => {
   console.error(e);
-  toast(`Помилка запуску: ${e.message || e}`, 10000);
+  toast(t("Помилка запуску: {0}", e.message || e), 10000);
 });
