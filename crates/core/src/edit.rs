@@ -629,63 +629,136 @@ pub fn story_rid(doc: &crate::Document, path: &[u32]) -> Option<String> {
     story_ids(doc).get((first & !STORY) as usize).cloned()
 }
 
-/// Paragraph at a path of the body or of a header/footer.
+// ---------- footnotes ----------
+
+/// First path element of a paragraph in a footnote: this bit plus the
+/// note's index in `note_ids`.
+pub const NOTE: u32 = 0x2000_0000;
+
+/// What the editor keeps, instead of a relationship id, while a footnote is edited.
+pub const NOTE_KEY: &str = "note:";
+
+/// Footnote ids in a stable order.
+pub fn note_ids(doc: &crate::Document) -> Vec<String> {
+    let mut v: Vec<String> = doc.footnotes.keys().cloned().collect();
+    v.sort_by_key(|id| (id.parse::<i64>().unwrap_or(i64::MAX), id.clone()));
+    v
+}
+
+pub fn note_index(doc: &crate::Document, id: &str) -> Option<u32> {
+    note_ids(doc).iter().position(|n| n == id).map(|i| i as u32)
+}
+
+pub fn note_id(doc: &crate::Document, path: &[u32]) -> Option<String> {
+    let first = *path.first()?;
+    if first & STORY != 0 || first & NOTE == 0 {
+        return None;
+    }
+    note_ids(doc).get((first & !NOTE) as usize).cloned()
+}
+
+/// Whether a path (by its first element) is in the body.
+pub fn in_body(first: u32) -> bool {
+    first & (STORY | NOTE) == 0
+}
+
+/// First path element of what the editor edits besides the body: a header or
+/// footer (its relationship id) or a footnote (`NOTE_KEY` + id).
+pub fn scope_of(doc: &crate::Document, key: &str) -> Option<u32> {
+    match key.strip_prefix(NOTE_KEY) {
+        Some(id) => note_index(doc, id).map(|i| NOTE | i),
+        None => story_index(doc, key).map(|i| STORY | i),
+    }
+}
+
+/// Where a path lives.
+enum Root {
+    Body,
+    Story(String),
+    Note(String),
+    Gone,
+}
+
+fn root_of(doc: &crate::Document, path: &[u32]) -> Root {
+    match path.first() {
+        Some(f) if in_body(*f) => Root::Body,
+        None => Root::Body,
+        Some(_) => match (story_rid(doc, path), note_id(doc, path)) {
+            (Some(r), _) => Root::Story(r),
+            (_, Some(n)) => Root::Note(n),
+            _ => Root::Gone,
+        },
+    }
+}
+
+/// Paragraph at a path of the body, a header/footer or a footnote.
 pub fn dpara<'a>(doc: &'a crate::Document, path: &[u32]) -> Option<&'a Para> {
-    match story_rid(doc, path) {
-        Some(rid) => para_at(&doc.stories.get(&rid)?.content, &path[1..]),
-        None if path.first().is_some_and(|f| f & STORY != 0) => None,
-        None => para_at(&doc.body, path),
+    match root_of(doc, path) {
+        Root::Body => para_at(&doc.body, path),
+        Root::Story(rid) => para_at(&doc.stories.get(&rid)?.content, &path[1..]),
+        Root::Note(id) => para_at(doc.footnotes.get(&id)?, &path[1..]),
+        Root::Gone => None,
     }
 }
 
 pub fn dpara_mut<'a>(doc: &'a mut crate::Document, path: &[u32]) -> Option<&'a mut Para> {
-    match story_rid(doc, path) {
-        Some(rid) => {
+    match root_of(doc, path) {
+        Root::Body => para_mut(&mut doc.body, path),
+        Root::Story(rid) => {
             let st = Rc::make_mut(&mut doc.stories).get_mut(&rid)?;
             st.dirty = true;
             para_mut(&mut st.content, &path[1..])
         }
-        None if path.first().is_some_and(|f| f & STORY != 0) => None,
-        None => para_mut(&mut doc.body, path),
+        Root::Note(id) => {
+            doc.footnotes_dirty = true;
+            para_mut(Rc::make_mut(&mut doc.footnotes).get_mut(&id)?, &path[1..])
+        }
+        Root::Gone => None,
     }
 }
 
 pub fn dcont_mut<'a>(doc: &'a mut crate::Document, path: &[u32]) -> Option<&'a mut Container> {
-    match story_rid(doc, path) {
-        Some(rid) => {
+    match root_of(doc, path) {
+        Root::Body => container_mut(&mut doc.body, path),
+        Root::Story(rid) => {
             let st = Rc::make_mut(&mut doc.stories).get_mut(&rid)?;
             st.dirty = true;
             container_mut(&mut st.content, &path[1..])
         }
-        None if path.first().is_some_and(|f| f & STORY != 0) => None,
-        None => container_mut(&mut doc.body, path),
+        Root::Note(id) => {
+            doc.footnotes_dirty = true;
+            container_mut(Rc::make_mut(&mut doc.footnotes).get_mut(&id)?, &path[1..])
+        }
+        Root::Gone => None,
     }
 }
 
 /// Root container of a path and the path inside it.
 pub fn droot<'a, 'p>(doc: &'a crate::Document, path: &'p [u32]) -> Option<(&'a Container, &'p [u32])> {
-    match story_rid(doc, path) {
-        Some(rid) => Some((&doc.stories.get(&rid)?.content, &path[1..])),
-        None if path.first().is_some_and(|f| f & STORY != 0) => None,
-        None => Some((&doc.body, path)),
+    match root_of(doc, path) {
+        Root::Body => Some((&doc.body, path)),
+        Root::Story(rid) => Some((&doc.stories.get(&rid)?.content, &path[1..])),
+        Root::Note(id) => Some((doc.footnotes.get(&id)?, &path[1..])),
+        Root::Gone => None,
     }
 }
 
-/// Paragraph paths of the body, or of one header/footer (with its prefix).
-pub fn dpaths(doc: &crate::Document, story: Option<u32>) -> Vec<Vec<u32>> {
-    match story {
-        None => para_paths(&doc.body),
-        Some(i) => {
-            let Some(rid) = story_ids(doc).get(i as usize).cloned() else { return Vec::new() };
-            let Some(st) = doc.stories.get(&rid) else { return Vec::new() };
-            para_paths(&st.content)
-                .into_iter()
-                .map(|p| {
-                    let mut v = vec![STORY | i];
-                    v.extend(p);
-                    v
-                })
-                .collect()
-        }
-    }
+/// Paragraph paths of the body, or of one header/footer or footnote (`scope`:
+/// its first path element, see `scope_of`).
+pub fn dpaths(doc: &crate::Document, scope: Option<u32>) -> Vec<Vec<u32>> {
+    let Some(first) = scope else { return para_paths(&doc.body) };
+    let content = match root_of(doc, &[first]) {
+        Root::Story(rid) => doc.stories.get(&rid).map(|s| &s.content),
+        Root::Note(id) => doc.footnotes.get(&id),
+        _ => None,
+    };
+    let Some(content) = content else { return Vec::new() };
+    para_paths(content)
+        .into_iter()
+        .map(|p| {
+            let mut v = vec![first];
+            v.extend(p);
+            v
+        })
+        .collect()
 }

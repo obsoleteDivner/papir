@@ -44,7 +44,8 @@ export interface State {
   comment: string | null;
   comments: number;
   /** header or footer being edited */
-  story: { kind: string; page: number } | null;
+  /** header, footer or footnote being edited; a footnote also tells where it is on its page */
+  story: { kind: string; page: number; top?: number; bottom?: number } | null;
   fmt: Fmt;
 }
 

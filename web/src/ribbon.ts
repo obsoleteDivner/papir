@@ -331,6 +331,7 @@ export class Ribbon {
       newcomment: () => this.host.newComment(),
       pagenum: () => v.exec(() => s.insert_field("PAGE", String((v.state.caret?.page ?? 0) + 1))),
       pagecount: () => v.exec(() => s.insert_field("NUMPAGES", String(v.pageCount()))),
+      footnote: () => v.exec(() => s.insert_footnote()),
       closestory: () => v.exec(() => s.exit_story(), false),
       header: () => v.exec(() => s.edit_story_at(v.currentPage(), 100, 10), false),
       comments: () => this.host.toggleComments(),
@@ -703,6 +704,11 @@ export class Ribbon {
       if (!document.body.classList.contains("no-review")) this.run("newcomment");
       return true;
     }
+    // Ctrl+Alt+F: a footnote, as in Word
+    if (e.altKey && code === "KeyF") {
+      this.run("footnote");
+      return true;
+    }
     const cmd = by[code] ?? (code === "Space" ? "clear" : undefined) ?? ({ "=": "sub", "+": "sup" } as Record<string, string>)[k];
     if (!cmd) return false;
     if (code === "KeyR" && e.shiftKey) return false;
@@ -731,10 +737,12 @@ export class Ribbon {
     const c = st.change;
     const date = c?.date ? new Date(c.date).toLocaleString("uk-UA", { dateStyle: "short", timeStyle: "short" }) : "";
     this.$("#st-change").textContent = c ? `${kinds[c.kind] ?? c.kind}: ${c.author || "невідомо"}${date ? ", " + date : ""}` : "";
+    // the header/footer tab; a footnote is edited with the usual tabs
     const storyTab = document.querySelector('.tab[data-tab="story"]') as HTMLElement;
-    if (storyTab.hidden === !!st.story) {
-      storyTab.hidden = !st.story;
-      (document.querySelector(`.tab[data-tab="${st.story ? "story" : "home"}"]`) as HTMLElement).click();
+    const hf = !!st.story && st.story.kind !== "footnote";
+    if (storyTab.hidden === hf) {
+      storyTab.hidden = !hf;
+      (document.querySelector(`.tab[data-tab="${hf ? "story" : "home"}"]`) as HTMLElement).click();
     }
     const tableTab = document.querySelector('.tab[data-tab="table"]') as HTMLElement;
     if (tableTab.hidden === st.table) {

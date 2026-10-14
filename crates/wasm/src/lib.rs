@@ -124,9 +124,15 @@ impl Session {
             ed.comment_anchors().into_iter().filter(|(_, a)| a.start <= *f && *f <= a.end).map(|(id, _)| id).max_by_key(|id| id.parse::<u32>().unwrap_or(0))
         };
         let comment_count = ed.doc.comments.items.len();
-        let story = ed.story.as_ref().map(|(rid, page, ..)| {
-            let kind = ed.doc.rels.get(rid).map(|r| r.kind.clone()).unwrap_or_default();
-            json!({"kind": kind, "page": page})
+        // a footnote being edited: its page and where it is on it
+        let note = ed.story.as_ref().and_then(|(key, ..)| key.strip_prefix(papir_core::edit::NOTE_KEY).map(String::from));
+        let note_area = note.and_then(|id| ed.layout().pages.iter().enumerate().find_map(|(pi, p)| p.notes.iter().find(|(n, ..)| *n == id).map(|(_, t, b)| (pi, *t, *b))));
+        let story = ed.story.as_ref().map(|(rid, page, ..)| match note_area {
+            Some((pi, top, bottom)) => json!({"kind": "footnote", "page": pi, "top": top, "bottom": bottom}),
+            None => {
+                let kind = ed.doc.rels.get(rid).map(|r| r.kind.clone()).unwrap_or_default();
+                json!({"kind": kind, "page": page})
+            }
         });
         let style_name = pp.style.as_deref().or(ed.doc.styles.default_para.as_deref()).and_then(|id| ed.doc.styles.map.get(id)).map(|s| s.name.clone());
         let list_fmt = pp.num_id.filter(|n| *n > 0).and_then(|n| ed.doc.numbering.level(n, pp.ilvl.unwrap_or(0))).map(|l| l.fmt.clone());
@@ -545,6 +551,11 @@ impl Session {
 
     pub fn exit_story(&mut self) {
         self.ed().exit_story();
+    }
+
+    /// Inserts a footnote at the caret and starts editing its text.
+    pub fn insert_footnote(&mut self) -> bool {
+        self.ed().insert_footnote()
     }
 
     /// PAGE, NUMPAGES

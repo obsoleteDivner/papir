@@ -313,7 +313,26 @@ export class DocView {
       ctx.rect(ox, oy, p.w * dpr, p.h * dpr);
       ctx.clip();
       this.paint(this.dl(i), ox, oy, k);
-      if (this.state.story) {
+      const st = this.state.story;
+      if (st && st.kind === "footnote") {
+        // the footnote stays clear, the rest of the page fades
+        const [, , , , top, bottom] = this.s.page_size(i);
+        const nt = st.page === i ? st.top ?? bottom : bottom;
+        const nb = st.page === i ? st.bottom ?? bottom : bottom;
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.fillRect(ox, oy + top * k, p.w * dpr, (nt - top) * k);
+        ctx.fillRect(ox, oy + nb * k, p.w * dpr, (bottom - nb) * k);
+        if (st.page === i) {
+          ctx.strokeStyle = brand;
+          ctx.lineWidth = dpr;
+          ctx.setLineDash([4 * dpr, 3 * dpr]);
+          ctx.strokeRect(ox + 4 * dpr, oy + nt * k - 2 * dpr, p.w * dpr - 8 * dpr, (nb - nt) * k + 4 * dpr);
+          ctx.setLineDash([]);
+          ctx.font = `${11 * dpr}px system-ui, sans-serif`;
+          ctx.fillStyle = brand;
+          ctx.fillText("Виноска", ox + 8 * dpr, oy + nt * k - 6 * dpr);
+        }
+      } else if (st) {
         const [, , , , top, bottom] = this.s.page_size(i);
         ctx.fillStyle = "rgba(255,255,255,0.55)";
         ctx.fillRect(ox, oy + top * k, p.w * dpr, (bottom - top) * k);
@@ -329,8 +348,8 @@ export class DocView {
         ctx.setLineDash([]);
         ctx.font = `${11 * dpr}px system-ui, sans-serif`;
         ctx.fillStyle = brand;
-        const label = this.state.story.kind === "footer" ? "Нижній колонтитул" : "Верхній колонтитул";
-        const ly = this.state.story.kind === "footer" ? bottom * k + 14 * dpr : top * k - 5 * dpr;
+        const label = st.kind === "footer" ? "Нижній колонтитул" : "Верхній колонтитул";
+        const ly = st.kind === "footer" ? bottom * k + 14 * dpr : top * k - 5 * dpr;
         ctx.fillText(label, ox + 8 * dpr, oy + ly);
       }
       const im = this.state.image;
@@ -602,18 +621,23 @@ export class DocView {
       }
     }
     if (e.detail === 2 && !this.readOnly) {
-      // headers and footers open with a double click outside the body area;
-      // a double click in the body goes back to it
+      // headers and footers open with a double click outside the body area,
+      // a footnote with a double click on it; a double click elsewhere goes back
       const [, , , , top, bottom] = this.s.page_size(h.page);
-      const outside = h.y < top || h.y > bottom;
-      if (this.state.story && !outside) {
+      const st = this.state.story;
+      const inside = st
+        ? st.kind === "footnote"
+          ? h.page === st.page && h.y >= (st.top ?? 0) && h.y <= (st.bottom ?? 0)
+          : h.y < top || h.y > bottom
+        : false;
+      if (st && !inside) {
         this.exec(() => {
           this.s.exit_story();
           this.s.click(h.page, h.x, h.y, false);
         }, false);
         return;
       }
-      if (!this.state.story && outside && this.s.edit_story_at(h.page, h.x, h.y)) {
+      if (!st && this.s.edit_story_at(h.page, h.x, h.y)) {
         this.refresh();
         return;
       }

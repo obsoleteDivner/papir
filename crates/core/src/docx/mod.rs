@@ -402,6 +402,11 @@ pub struct Document {
     pub charts: Rc<HashMap<String, crate::chart::Chart>>,
     /// footnotes by id (separators left out)
     pub footnotes: Rc<HashMap<String, Container>>,
+    /// the footnotes part and its root as read (separators and the like are kept on save)
+    pub footnotes_part: Option<String>,
+    pub footnotes_root: Option<Rc<Element>>,
+    /// a footnote was edited or added: the part is written again on save
+    pub footnotes_dirty: bool,
     /// parts that could not be read and were left out (styles, a header...)
     pub damaged: Vec<String>,
 }
@@ -516,7 +521,10 @@ impl Document {
         }
 
         let mut footnotes = HashMap::new();
+        let mut footnotes_part = None;
+        let mut footnotes_root = None;
         if let Some(fpart) = rels.values().find(|r| r.kind == "footnotes").map(|r| r.target.clone()) {
+            footnotes_part = Some(fpart.clone());
             if let Some(root) = soft(&fpart, &mut damaged) {
                 let frels = soft_rels(&fpart, &mut damaged);
                 let mut fctx = parse::Ctx { part: &fpart, rels: &frels };
@@ -528,6 +536,7 @@ impl Document {
                         footnotes.insert(id.to_string(), parse::container(&mut fctx, f.children.iter()));
                     }
                 }
+                footnotes_root = Some(Rc::new(root));
             }
         }
 
@@ -555,6 +564,9 @@ impl Document {
             comments: Rc::new(comments),
             charts: Rc::new(charts),
             footnotes: Rc::new(footnotes),
+            footnotes_part,
+            footnotes_root,
+            footnotes_dirty: false,
             damaged,
         })
     }

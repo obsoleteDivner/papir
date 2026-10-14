@@ -106,6 +106,12 @@ impl Editor {
     /// Starts editing the header (point above the body) or footer (below it)
     /// of a page; creates it when the page has none.
     pub fn edit_story_at(&mut self, page: usize, x: f32, y: f32) -> bool {
+        // a footnote at the bottom of the page
+        let note = self.layout().pages[page].notes.iter().find(|(_, t, b)| y >= *t && y <= *b).map(|(id, ..)| id.clone());
+        if let Some(id) = note {
+            self.edit_note(&id, page, Some((x, y)));
+            return true;
+        }
         let (top, bottom, header, footer) = {
             let p = &self.layout().pages[page];
             (p.top, p.bottom, p.header.clone(), p.footer.clone())
@@ -133,6 +139,102 @@ impl Editor {
         self.anchor = p.clone();
         self.focus = p;
         true
+    }
+
+    /// Starts editing a footnote; the caret goes where `at` points, else to its end.
+    fn edit_note(&mut self, id: &str, page: usize, at: Option<(f32, f32)>) {
+        let (a, f) = (self.anchor.clone(), self.focus.clone());
+        self.story = Some((format!("{}{id}", crate::edit::NOTE_KEY), page, a, f));
+        self.layout_reset();
+        let scope = self.scope();
+        let hit = at.and_then(|(x, y)| self.layout().hit_in(page, x, y, scope));
+        let p = match hit {
+            Some((path, off)) => Pos { path: path.to_vec(), off },
+            None => {
+                let last = self.scope_paths().into_iter().last().unwrap_or_default();
+                let off = dpara(&self.doc, &last).map(|p| p.len()).unwrap_or(0);
+                Pos { path: last, off }
+            }
+        };
+        self.anchor = p.clone();
+        self.focus = p;
+    }
+
+    /// Inserts a footnote at the caret and starts editing its text.
+    pub fn insert_footnote(&mut self) -> bool {
+        if self.story.is_some() {
+            return false;
+        }
+        let f = self.focus.clone();
+        let Some(props) = dpara(&self.doc, &f.path).map(|p| p.props_at(f.off)) else { return false };
+        self.checkpoint(Kind::Other);
+        self.delete_selection();
+        let f = self.focus.clone();
+        self.ensure_footnotes();
+        // a number not used by any note, separators included
+        let used = self.doc.footnotes.keys().cloned().chain(
+            self.doc.footnotes_root.iter().flat_map(|r| r.wchildren("footnote").filter_map(|n| n.wattr("id")).map(String::from).collect::<Vec<_>>()),
+        );
+        let id = (used.filter_map(|i| i.parse::<i64>().ok()).max().unwrap_or(0) + 1).max(1).to_string();
+        let style_by = |name: &str| self.doc.styles.map.values().find(|s| s.name.eq_ignore_ascii_case(name)).map(|s| s.id.clone());
+        let mark = match style_by("footnote reference") {
+            Some(st) => format!("<w:rStyle w:val=\"{}\"/>", xml::escape(&st)),
+            None => "<w:vertAlign w:val=\"superscript\"/>".into(),
+        };
+        let text = style_by("footnote text").map(|st| format!("<w:pStyle w:val=\"{}\"/>", xml::escape(&st))).unwrap_or_default();
+        // the mark in the text
+        let mut rp = props.clone();
+        match style_by("footnote reference") {
+            Some(st) => rp.style = Some(st),
+            None => rp.valign = Some("superscript".into()),
+        }
+        let mut r = Run::new(rp);
+        r.items.push(Item::Raw(Rc::new(el(&format!("<w:x xmlns:w=\"{W}\"><w:footnoteReference w:id=\"{id}\"/></w:x>")).elems().next().cloned().unwrap())));
+        if let Some(p) = dpara_mut(&mut self.doc, &f.path) {
+            p.insert_inlines(f.off, vec![Inline::Run(r)]);
+        }
+        // the note: its number, a space, the text to come
+        let src = format!("<w:x xmlns:w=\"{W}\"><w:p><w:pPr>{text}</w:pPr><w:r><w:rPr>{mark}</w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> </w:t></w:r></w:p></w:x>");
+        let block = crate::docx::parse_block(&el(&src).elems().next().cloned().unwrap(), &self.doc);
+        Rc::make_mut(&mut self.doc.footnotes).insert(id.clone(), vec![Rc::new(block)]);
+        self.doc.footnotes_dirty = true;
+        // after the mark when the note is closed
+        self.anchor = Pos { off: f.off, ..f.clone() };
+        self.focus = self.anchor.clone();
+        self.changed();
+        let page = self.layout().pages.iter().position(|p| p.notes.iter().any(|(n, ..)| *n == id)).unwrap_or(0);
+        self.edit_note(&id, page, None);
+        true
+    }
+
+    /// The footnotes part, created (with its separators) when the document has none.
+    fn ensure_footnotes(&mut self) {
+        if self.doc.footnotes_root.is_some() {
+            return;
+        }
+        let pre = self.doc.pkg.name_prefix();
+        let mut file = "footnotes.xml".to_string();
+        let mut n = 1;
+        while self.doc.pkg.get(&format!("word/{file}")).is_some() {
+            file = format!("footnotes{pre}{n}.xml");
+            n += 1;
+        }
+        let part = format!("word/{file}");
+        let sep = |kind: &str, id: i32, mark: &str| {
+            format!("<w:footnote w:type=\"{kind}\" w:id=\"{id}\"><w:p><w:pPr><w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/></w:pPr><w:r><w:{mark}/></w:r></w:p></w:footnote>")
+        };
+        let src = format!(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:footnotes xmlns:w=\"{W}\" xmlns:r=\"{R}\">{}{}</w:footnotes>",
+            sep("separator", -1, "separator"),
+            sep("continuationSeparator", 0, "continuationSeparator")
+        );
+        self.doc.pkg.set(&part, src.clone().into_bytes());
+        self.doc.pkg.ensure_override(&part, "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml");
+        let doc_part = self.doc.part.clone();
+        let rid = self.doc.pkg.add_rel(&doc_part, "footnotes", &file, false);
+        Rc::make_mut(&mut self.doc.rels).insert(rid, Rel { kind: "footnotes".into(), target: part.clone(), external: false });
+        self.doc.footnotes_part = Some(part);
+        self.doc.footnotes_root = Some(Rc::new(el(&src)));
     }
 
     /// Back to the body, where the caret was before.

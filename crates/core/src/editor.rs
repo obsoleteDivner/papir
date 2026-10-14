@@ -21,6 +21,7 @@ struct Snap {
     sect: Option<Rc<crate::xml::Element>>,
     comments: Rc<crate::comments::Comments>,
     stories: Rc<std::collections::HashMap<String, Story>>,
+    footnotes: Rc<std::collections::HashMap<String, Container>>,
     anchor: Pos,
     focus: Pos,
     /// the document right after this step, kept when others' changes may
@@ -130,10 +131,9 @@ impl Editor {
         2_000_000 + self.doc.pkg.ns.unwrap_or(0) * 100_000 + self.track_id
     }
 
-    /// Paragraphs of what is being edited: the body, or a header/footer.
+    /// Paragraphs of what is being edited: the body, a header/footer or a footnote.
     pub fn scope_paths(&self) -> Vec<Vec<u32>> {
-        let story = self.story.as_ref().and_then(|(rid, ..)| edit::story_index(&self.doc, rid));
-        dpaths(&self.doc, story)
+        dpaths(&self.doc, self.scope())
     }
 
     pub fn layout(&mut self) -> &Layout {
@@ -345,9 +345,9 @@ impl Editor {
         self.goal_x = goal;
     }
 
-    /// First path element of the header/footer being edited.
+    /// First path element of the header/footer or footnote being edited.
     pub fn scope(&self) -> Option<u32> {
-        self.story.as_ref().and_then(|(rid, ..)| edit::story_index(&self.doc, rid)).map(|i| edit::STORY | i)
+        self.story.as_ref().and_then(|(key, ..)| edit::scope_of(&self.doc, key))
     }
 
     pub fn click(&mut self, page: usize, x: f32, y: f32, extend: bool) {
@@ -370,7 +370,7 @@ impl Editor {
                     top.after.get_or_insert(now);
                 }
             }
-            self.undo.push(Snap { body: self.doc.body.clone(), sect: self.doc.sect.clone(), comments: self.doc.comments.clone(), stories: self.doc.stories.clone(), anchor: self.anchor.clone(), focus: self.focus.clone(), after: None });
+            self.undo.push(Snap { body: self.doc.body.clone(), sect: self.doc.sect.clone(), comments: self.doc.comments.clone(), stories: self.doc.stories.clone(), footnotes: self.doc.footnotes.clone(), anchor: self.anchor.clone(), focus: self.focus.clone(), after: None });
             if self.undo.len() > 500 {
                 self.undo.remove(0);
             }
@@ -383,6 +383,7 @@ impl Editor {
         let Some(s) = self.undo.pop() else { return false };
         let back = self.step_back(s);
         self.redo.push(back);
+        self.leave_lost_story();
         true
     }
 
@@ -390,7 +391,19 @@ impl Editor {
         let Some(s) = self.redo.pop() else { return false };
         let back = self.step_back(s);
         self.undo.push(back);
+        self.leave_lost_story();
         true
+    }
+
+    /// The header, footer or footnote being edited is gone (undone): back to the body.
+    fn leave_lost_story(&mut self) {
+        if self.story.is_some() && self.scope().is_none() {
+            if let Some((_, _, a, f)) = self.story.take() {
+                self.layout_reset();
+                self.anchor = self.clamp(a);
+                self.focus = self.clamp(f);
+            }
+        }
     }
 
     /// Goes back to the state of `s`; returns the step that comes back here.
@@ -399,7 +412,7 @@ impl Editor {
     fn step_back(&mut self, s: Snap) -> Snap {
         use crate::collab::{derive_ids, merge, Caret, Gen, Ids, State};
         let cur = State::of(&self.doc);
-        let here = Snap { body: cur.body.clone(), sect: cur.sect.clone(), comments: cur.comments.clone(), stories: cur.stories.clone(), anchor: self.anchor.clone(), focus: self.focus.clone(), after: None };
+        let here = Snap { body: cur.body.clone(), sect: cur.sect.clone(), comments: cur.comments.clone(), stories: cur.stories.clone(), footnotes: self.doc.footnotes.clone(), anchor: self.anchor.clone(), focus: self.focus.clone(), after: None };
         let merged = match &s.after {
             Some(after) if self.collab.is_some() && !after.same(&cur) => {
                 let before = State { body: s.body.clone(), sect: s.sect.clone(), comments: s.comments.clone(), stories: s.stories.clone(), pkg: cur.pkg.clone(), rels: cur.rels.clone(), numbering: cur.numbering.clone() };
@@ -422,6 +435,10 @@ impl Editor {
         match merged {
             Some((m, mapped)) => {
                 m.install(&mut self.doc);
+                if !Rc::ptr_eq(&self.doc.footnotes, &s.footnotes) {
+                    self.doc.footnotes = s.footnotes;
+                    self.doc.footnotes_dirty = true;
+                }
                 let a = mapped.first().cloned().unwrap_or(s.anchor);
                 let f = mapped.get(1).cloned().unwrap_or_else(|| a.clone());
                 self.anchor = self.clamp(a);
@@ -432,6 +449,10 @@ impl Editor {
                 self.doc.sect = s.sect;
                 self.doc.comments = s.comments;
                 self.doc.stories = s.stories;
+                if !Rc::ptr_eq(&self.doc.footnotes, &s.footnotes) {
+                    self.doc.footnotes = s.footnotes;
+                    self.doc.footnotes_dirty = true;
+                }
                 self.anchor = self.clamp(s.anchor);
                 self.focus = self.clamp(s.focus);
             }

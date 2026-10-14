@@ -1,31 +1,31 @@
-# Папір
+# Papir
 
-Редактор .docx і переглядач .xlsx у браузері та конвертер .docx → PDF на власному ядрі (Rust). Вбудовується в інші застосунки через WOPI.
+A .docx editor and .xlsx viewer for the browser, and a .docx → PDF converter, built on its own core in Rust. Embeds into other applications through WOPI.
 
-## Склад
+## Layout
 
-| Каталог | Що це |
+| Directory | What it is |
 | --- | --- |
-| `crates/core` | Ядро: читання й запис DOCX без втрат, верстка, редагування, злиття правок кількох людей, XLSX |
-| `crates/wasm` | Ядро для браузера: документ, таблиця, правопис |
+| `crates/core` | The core: lossless DOCX reading and writing, layout, editing, merging edits of several people, XLSX |
+| `crates/wasm` | The core for the browser: document, spreadsheet, spelling |
 | `crates/cli` | `docconv`: .docx → PDF |
-| `web` | Редактор (`index.html`) і переглядач таблиць (`sheet.html`) |
-| `server` | `docserver` на Elixir: WOPI, discovery, спільне редагування, конвертація |
-| `dict` | Словники Hunspell (`uk_UA`, `en_US`), ліцензії в `dict/LICENSES.md` |
-| `fonts` | Метрично сумісні шрифти |
+| `web` | The editor (`index.html`) and the spreadsheet viewer (`sheet.html`) |
+| `server` | `docserver` in Elixir: WOPI, discovery, editing together, conversion |
+| `dict` | Hunspell dictionaries (`uk_UA`, `en_US`), licenses in `dict/LICENSES.md` |
+| `fonts` | Metric-compatible fonts, licenses in `fonts/LICENSES.md` |
 
-## Збірка
+## Build
 
-Потрібні Rust, Erlang та Elixir 1.18, а також Node.js або Docker: без Node TypeScript збирається в контейнері.
+You need Rust, Erlang and Elixir 1.18, and Node.js or Docker: without Node, TypeScript is compiled in a container.
 
-Один раз:
+Once:
 
 ```bash
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.129 --locked
 ```
 
-Збірка (з кореня репозиторію):
+Build (from the repository root):
 
 ```bash
 ./scripts/build-web.sh
@@ -33,46 +33,50 @@ cargo build --release -p docconv
 (cd server && mix deps.get)
 ```
 
-Після змін у `crates/` чи `web/src` знову запустити `./scripts/build-web.sh` (редактор) або `cargo build --release -p docconv` (конвертер).
+After changes in `crates/` or `web/src`, run `./scripts/build-web.sh` (editor) or `cargo build --release -p docconv` (converter) again.
 
-## Запуск
+## Run
 
 ```bash
 cd server && elixir --name docconv@127.0.0.1 -S mix run --no-halt
 ```
 
-- `http://127.0.0.1:8780/` — стан сервера («Працює»);
+- `http://127.0.0.1:8780/` — server status;
 - `http://127.0.0.1:8780/hosting/discovery` — discovery;
-- `http://127.0.0.1:8781/` — тестовий WOPI-хост: файли з `corpus/local`, відкриття для редагування чи перегляду, `?user=Ім'я` — від імені іншої людини.
+- `http://127.0.0.1:8781/` — a test WOPI host: files from `corpus/local`, opened for editing or viewing, `?user=Name` to open as another person.
 
-Лише редактор, без сервера: `python3 scripts/dev-static.py 8765`, далі `http://127.0.0.1:8765/web/index.html?open=/шлях/до/файлу.docx`.
+Editor only, without the server: `python3 scripts/dev-static.py 8765`, then `http://127.0.0.1:8765/web/index.html?open=/path/to/file.docx`.
 
-## Конвертер
-
-```bash
-target/release/docconv convert файл.docx -o файл.pdf
-target/release/docconv convert ./вхідні -o ./pdf --jobs 8
-```
-
-`docconv` приймає й аргументи `soffice --headless --convert-to pdf`. У `docserver` є пул конвертації і `POST /api/v1/convert` (.docx у тілі → PDF).
-
-## Бенчмарки
+## Converter
 
 ```bash
-cargo run --release -p papir-core --example convert -- --runs 3 --jobs 4 каталог...  # конвертація в PDF: час на файл, документів і сторінок за секунду, пам'ять
-cargo run --release -p papir-core --example pages -- файл.docx...      # сторінки, час розбору й верстки
-cargo run --release -p papir-core --example xlsx_scan -- каталог...     # відкриває кожен .xlsx, збої й загальний час
+target/release/docconv convert file.docx -o file.pdf
+target/release/docconv convert ./in -o ./pdf --jobs 8
 ```
 
-`corpus/local` (документи для перевірок) і `local/` не потрапляють у git.
+`docconv` also accepts the arguments of `soffice --headless --convert-to pdf`. `docserver` has a conversion pool and `POST /api/v1/convert` (.docx in the body → PDF).
 
-## Налаштування
+## Benchmarks
 
-Усе задано в `server/config/config.exs` (з коментарями), шляхи образу — у `server/config/prod.exs`. Для розгортання потрібні лише дві адреси:
+```bash
+cargo run --release -p papir-core --example convert -- --runs 3 --jobs 4 dir...   # conversion to PDF: time per file, documents and pages per second, memory
+cargo run --release -p papir-core --example pages -- file.docx...                  # pages, parsing and layout time
+cargo run --release -p papir-core --example xlsx_scan -- dir...                    # opens every .xlsx, failures and total time
+```
+
+`corpus/local` (documents for checks) and `local/` are not in git.
+
+## Configuration
+
+Everything is set in `server/config/config.exs` (with comments), the image's paths in `server/config/prod.exs`. A deployment needs just two addresses:
 
 ```bash
 docker build -t papir .
 docker run -p 8780:8780 -e DOCSERVER_PUBLIC_URL=https://docs.example.com -e WOPI_HOSTS=https://app.example.com papir
 ```
 
-`DOCSERVER_PUBLIC_URL` — адреса, за якою браузер бачить Папір; `WOPI_HOSTS` — адреса застосунку, з якого відкривають документи (WOPI-хоста). Будь-яке інше значення з конфігу теж можна перекрити змінною середовища (перелік — у `server/config/runtime.exs`), але зазвичай це не потрібно. `--build-arg WITH_SOFFICE=1` додає в образ LibreOffice для форматів, крім .docx.
+`DOCSERVER_PUBLIC_URL` is the address browsers reach Papir at; `WOPI_HOSTS` is the address of the application documents are opened from (the WOPI host). Any other value from the config can be overridden by an environment variable too (see `server/config/runtime.exs`), though it is rarely needed. `--build-arg WITH_SOFFICE=1` adds LibreOffice to the image for formats other than .docx.
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE). The fonts and the spelling dictionaries keep their own licenses: [fonts/LICENSES.md](fonts/LICENSES.md), [dict/LICENSES.md](dict/LICENSES.md).

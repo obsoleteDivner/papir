@@ -13,6 +13,9 @@ pub fn save(doc: &Document) -> Result<Vec<u8>, Error> {
     if doc.comments.dirty {
         write_comments(doc, &mut pkg);
     }
+    if doc.footnotes_dirty {
+        write_footnotes(doc, &mut pkg);
+    }
     // edited headers and footers
     for st in doc.stories.values().filter(|s| s.dirty) {
         let mut x = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n");
@@ -35,6 +38,38 @@ pub fn save(doc: &Document) -> Result<Vec<u8>, Error> {
     }
     let out = zw.finish().map_err(|e| Error::Zip(e.to_string()))?;
     Ok(out.into_inner())
+}
+
+/// The footnotes part: the notes as edited, everything else (separators,
+/// continuation notices) as it was read; new notes at the end.
+fn write_footnotes(doc: &Document, pkg: &mut super::Package) {
+    let (Some(part), Some(root)) = (&doc.footnotes_part, &doc.footnotes_root) else { return };
+    let mut x = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n");
+    x.push_str(&root.open_tag());
+    let mut written = std::collections::HashSet::new();
+    for c in &root.children {
+        match c {
+            Node::Elem(f) if f.is_w("footnote") && f.wattr("type").is_none_or(|t| t == "normal") => {
+                let id = f.wattr("id").unwrap_or_default();
+                // a note that is no longer there was deleted with its reference
+                if let Some(content) = doc.footnotes.get(id) {
+                    x.push_str(&f.open_tag());
+                    container(&mut x, content);
+                    x.push_str(&f.close_tag());
+                    written.insert(id.to_string());
+                }
+            }
+            Node::Elem(e) => e.write_to(&mut x),
+            Node::Text(t) => xml::escape_into(&mut x, t, false),
+        }
+    }
+    for id in crate::edit::note_ids(doc).into_iter().filter(|id| !written.contains(id)) {
+        x.push_str(&format!("<w:footnote w:id=\"{}\">", xml::escape(&id)));
+        container(&mut x, &doc.footnotes[&id]);
+        x.push_str("</w:footnote>");
+    }
+    x.push_str(&root.close_tag());
+    pkg.set(part, x.into_bytes());
 }
 
 pub fn document_xml(doc: &Document) -> String {

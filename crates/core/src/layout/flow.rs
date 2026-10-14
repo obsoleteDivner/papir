@@ -74,6 +74,8 @@ pub struct Page {
     /// header and footer relationship ids used on this page
     pub header: Option<String>,
     pub footer: Option<String>,
+    /// footnotes at the bottom of this page: id, top, bottom
+    pub notes: Vec<(String, f32, f32)>,
 }
 
 pub struct Layout {
@@ -516,6 +518,11 @@ fn decorate(pl: &ParaLayout, x: f32, w: f32, top: f32, bottom: f32, out: &mut Ve
         line(&b.left, l - 4.0, top, l - 4.0, bottom, out);
         line(&b.right, r + 4.0, top, r + 4.0, bottom, out);
     }
+    // a bar tab is no stop for text: Word draws a vertical line through the paragraph there
+    for t in pl.props.tabs.iter().flatten().filter(|t| t.kind == "bar") {
+        let bx = x + t.pos as f32 / 20.0;
+        out.push(Placed::Stroke { x1: bx, y1: top, x2: bx, y2: bottom, w: 0.5, color: 0, style: 0 });
+    }
 }
 
 fn style_of(b: &Border) -> u8 {
@@ -795,6 +802,10 @@ struct Pager<'a, 'b> {
     page_notes: Vec<String>,
     notes_h: f32,
     note_heights: HashMap<String, f32>,
+    /// footnotes placed on the page being filled (id, top, bottom)
+    notes_placed: Vec<(String, f32, f32)>,
+    /// paragraphs of the footnote being edited, in order
+    note_order: Vec<PathRc>,
 }
 
 impl<'a, 'b> Pager<'a, 'b> {
@@ -816,6 +827,20 @@ impl<'a, 'b> Pager<'a, 'b> {
         let mut bx = BoxCx { labels: None, order: None };
         let h = layout_box(self.env, c, None, self.width, &TCtx::default(), &mut bx, out);
         self.env.cache.borrow_mut().cur_note = prev;
+        h
+    }
+
+    /// The footnote being edited, laid out with paths (caret, selection, typing).
+    fn note_items_edited(&mut self, id: &str, out: &mut Vec<Placed>) -> f32 {
+        let Some(c) = self.env.doc.footnotes.get(id) else { return 0.0 };
+        let n = self.env.cache.borrow().notes.get(id).copied().unwrap_or(0);
+        let prev = std::mem::replace(&mut self.env.cache.borrow_mut().cur_note, n);
+        let mut path = vec![crate::edit::NOTE | crate::edit::note_index(self.env.doc, id).unwrap_or(0)];
+        let mut order = Vec::new();
+        let mut bx = BoxCx { labels: None, order: Some(&mut order) };
+        let h = layout_box(self.env, c, Some(&mut path), self.width, &TCtx::default(), &mut bx, out);
+        self.env.cache.borrow_mut().cur_note = prev;
+        self.note_order.extend(order);
         h
     }
 
@@ -853,11 +878,13 @@ impl<'a, 'b> Pager<'a, 'b> {
             let mut y = top + NOTE_GAP;
             for id in std::mem::take(&mut self.page_notes) {
                 let mut items = Vec::new();
-                let h = self.note_items(&id, &mut items);
+                let edited = self.env.story.as_ref().is_some_and(|(k, _)| k.strip_prefix(crate::edit::NOTE_KEY) == Some(id.as_str()));
+                let h = if edited { self.note_items_edited(&id, &mut items) } else { self.note_items(&id, &mut items) };
                 for mut it in items {
                     it.shift(self.left, y);
                     self.items.push(it);
                 }
+                self.notes_placed.push((id, y, y + h));
                 y += h;
             }
             self.notes_h = 0.0;
@@ -878,6 +905,7 @@ impl<'a, 'b> Pager<'a, 'b> {
             tables: std::mem::take(&mut self.tables),
             header: None,
             footer: None,
+            notes: std::mem::take(&mut self.notes_placed),
         });
         self.started = false;
     }
@@ -1297,6 +1325,8 @@ pub fn layout_document(env: &Env) -> Layout {
         page_notes: Vec::new(),
         notes_h: 0.0,
         note_heights: HashMap::new(),
+        notes_placed: Vec::new(),
+        note_order: Vec::new(),
     };
     pg.apply_sect(first);
     pg.new_page();
@@ -1367,8 +1397,10 @@ pub fn layout_document(env: &Env) -> Layout {
             }
         }
     }
+    let note_order = std::mem::take(&mut pg.note_order);
     let mut order = pg.order;
     order.extend(story_order);
+    order.extend(note_order);
     let order_pos = order.iter().enumerate().map(|(i, p)| (p.clone(), i)).collect();
     env.cache.borrow_mut().sweep();
     Layout { pages, index, order, order_pos }
@@ -1378,7 +1410,7 @@ pub fn layout_document(env: &Env) -> Layout {
 
 fn in_scope(path: &[u32], scope: Option<u32>) -> bool {
     match (path.first(), scope) {
-        (Some(f), None) => f & crate::edit::STORY == 0,
+        (Some(f), None) => crate::edit::in_body(*f),
         (Some(f), Some(s)) => *f == s,
         _ => false,
     }
@@ -1527,7 +1559,7 @@ impl Layout {
 
     /// Caret position one line up (`dir < 0`) or down at horizontal `px`.
     pub fn vertical(&self, path: &[u32], off: usize, px: f32, dir: i32) -> Option<(PathRc, usize)> {
-        let scope = path.first().filter(|f| *f & crate::edit::STORY != 0).copied();
+        let scope = path.first().filter(|f| !crate::edit::in_body(**f)).copied();
         let (pg, it) = self.locate(path, off)?;
         let (_, para, idx, _, y, _) = self.line_at(pg, it)?;
         let cur_top = y;

@@ -590,7 +590,12 @@ pub fn layout(env: &Env, p: &Para, width: f32, ctx: &ParaCtx) -> ParaLayout {
             }
             x += w;
             j += 1;
-            if j < n && allowed[j] {
+            // after a soft hyphen the line ends with a hyphen: break there only if it fits
+            let hyphen_fits = || {
+                let h = &chars[j - 1];
+                h.c != '\u{AD}' || x + env.fonts.width(h.face, '-', h.size) <= limit + 0.01
+            };
+            if j < n && allowed[j] && hyphen_fits() {
                 last_break = Some(j);
             }
         }
@@ -715,12 +720,18 @@ fn finish_line(
     }
 
     // x positions with left tabs
+    // a line broken after a soft hyphen shows a hyphen there
+    let hyphen = (b > a && chars[b - 1].c == '\u{AD}' && !last_line && mandatory.is_none()).then(|| {
+        let h = &chars[b - 1];
+        (b - 1, env.fonts.width(h.face, '-', h.size))
+    });
     let mut xs = vec![0.0f32; b - a + 1];
     let mut x = start_x;
     let mut tab_kinds: Vec<(usize, String, f32)> = Vec::new();
     for i in a..b {
         xs[i - a] = x;
         let w = match chars[i].k {
+            _ if hyphen.is_some_and(|(k, _)| k == i) => hyphen.unwrap().1,
             K::Tab | K::LabelTab => {
                 let (pos, kind, _) = next_tab(x, first_line);
                 let w = (pos - x).max(0.0);
@@ -839,6 +850,10 @@ fn finish_line(
                 pieces.push(Piece::Text { x: px, text, face, size: s.size, color: s.color, start, adv, dy: s.dy, deco: s.deco, hl: s.hl, phantom });
             }
         }
+    }
+    if let Some((k, _)) = hyphen {
+        let s = &stys[chars[k].sty];
+        pieces.push(Piece::Label { x: xs[k - a] + shift, text: "-".into(), face: chars[k].face, size: s.size, color: s.color, dy: s.dy });
     }
     let start = if a < chars.len() { chars[a..].iter().find(|c| !matches!(c.k, K::Label | K::LabelTab)).map(|c| c.off).unwrap_or(para_len) } else { para_len };
     let end = if last_line { para_len } else { chars.get(b).map(|c| c.off).unwrap_or(para_len) };
